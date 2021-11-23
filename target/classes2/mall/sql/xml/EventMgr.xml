@@ -1,0 +1,434 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- <if test="@org.apache.commons.lang.StringUtils@isNotBlank(PD_NAME)"> -->
+
+<mapper namespace="mall.web.mapper.admin.EventMgrMapper">
+	<sql id="searchCondition">
+		<where>	
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(schTxt)">
+				EVENT_NAME LIKE '%' || #{schTxt} || '%'
+			</if>
+			<if test="AD_NAME != null and AD_NAME != '' and AD_NAME != ' ' ">
+			    AND EVENT_NAME = #{AD_NAME}
+			</if>
+			AND DEL_YN = 'N'
+			AND SUPR_ID = #{SUPR_ID}
+		</where>  
+	</sql>
+	
+	<sql id="makeAdId">
+	</sql>
+	
+	<select id="count" parameterType="mall.web.domain.TB_EVENTIFXM" resultType="int">
+		SELECT COUNT(*)
+		  FROM TB_EVENTIFXM
+		<include refid="searchCondition"/>
+	</select>
+	
+	<select id="paginatedList" parameterType="mall.web.domain.TB_EVENTIFXM" resultType="mall.web.domain.TB_EVENTIFXM">
+		<include refid="default.pagerHeader"/>	
+			SELECT *
+			  FROM (
+					SELECT
+						EVENT_ID
+						, EVENT_NAME
+						, START_DT
+						, END_DT
+						, AD_DESC
+						, TOP_ATFL
+						, DEL_YN
+						, TOP_TYPE
+						, END_YN
+						, REGP_ID
+						, REG_DTM
+						, MODP_ID
+						, MOD_DTM
+						, ( SELECT COUNT(*) FROM TB_ADPDIFXM A WHERE A.EVENT_ID = EVENT_ID  ) PD_CNT
+					FROM TB_EVENTIFXM
+					ORDER BY EVENT_ID desc
+			        )
+			<include refid="searchCondition"/>
+		<include refid="default.pagerFooter"/>
+	</select>
+	
+	<select id="selectList" parameterType="mall.web.domain.TB_EVENTIFXM" resultType="mall.web.domain.TB_EVENTIFXM">  <!-- 팝업창 광고목록 -->
+			SELECT *
+			  FROM (
+					SELECT
+						SUPR_ID
+						, EVENT_ID
+						, EVENT_NAME
+						, START_DT
+						, END_DT
+						, MENU_NAME
+						, MENU_YN
+						, MENU_ORDER
+						, EVENT_DESC
+						, TOP_ATFL
+						, DEL_YN
+						, ATFL_ID
+						, TOP_TYPE
+						, END_YN
+						, REGP_ID
+						, REG_DTM
+					FROM TB_EVENTIFXM
+					ORDER BY EVENT_ID ASC
+			        )
+			<include refid="searchCondition"/>
+	</select>
+	
+	<select id="find" parameterType="mall.web.domain.TB_EVENTIFXM" resultType="mall.web.domain.TB_EVENTIFXM">
+			SELECT
+				SUPR_ID
+				, EVENT_ID
+				, EVENT_NAME
+				, START_DT
+				, END_DT
+				, MENU_NAME
+				, MENU_YN
+				, MENU_ORDER
+				, EVENT_DESC
+				, TOP_ATFL
+				, DEL_YN
+				, ATFL_ID
+				, TOP_TYPE
+				, END_YN
+				, REGP_ID
+				, REG_DTM
+			FROM TB_EVENTIFXM
+			WHERE EVENT_ID = #{EVENT_ID}
+	</select>
+	
+	<select id="detailList" parameterType="mall.web.domain.TB_EVENTPDXM" resultType="mall.web.domain.TB_EVENTPDXM">
+		SELECT *
+		  FROM (
+				SELECT
+					EVENT_ID
+					, PD_ID
+					, PD_NAME
+					, PD_PRICE
+					, SELL_PRICE
+					, PD_DESC
+					, DEL_YN
+					, ORD
+					, REGP_ID
+					, REG_DTM
+					, MODP_ID
+					, MOD_DTM
+				FROM 
+					TB_EVENTPDXM
+				WHERE
+					EVENT_ID = #{EVENT_ID} AND DEL_YN = 'N'
+				ORDER BY ORD ASC
+		        )
+	</select>
+	
+	<insert id="insert" parameterType="mall.web.domain.TB_EVENTIFXM">
+		<selectKey keyProperty="EVENT_ID" order="BEFORE" resultType="String">
+			SELECT 'E' || LPAD(NVL(MAX(TO_NUMBER(SUBSTR(EVENT_ID, 3))), 0) + 1, 4, '0') 
+			  FROM TB_EVENTIFXM
+			 WHERE SUPR_ID = #{SUPR_ID}
+		</selectKey>
+		INSERT INTO
+			TB_EVENTIFXM (
+				SUPR_ID
+				, EVENT_ID
+				, EVENT_NAME
+				, START_DT
+				, END_DT
+				, MENU_NAME
+				, MENU_YN
+				, MENU_ORDER
+				, EVENT_DESC
+				, TOP_ATFL
+				, DEL_YN
+				, ATFL_ID
+				, TOP_TYPE
+				, END_YN
+				, REGP_ID
+				, REG_DTM
+				, MODP_ID
+				, MOD_DTM
+			) VALUES (
+				#{SUPR_ID}
+				, #{EVENT_ID}
+				, #{EVENT_NAME}
+				, #{START_DT}
+				, #{END_DT}
+				, #{MENU_NAME}
+				, #{MENU_YN}
+				, #{MENU_ORDER}
+				, #{EVENT_DESC}
+				, #{TOP_ATFL}
+				, #{DEL_YN}
+				, #{ATFL_ID}
+				, #{TOP_TYPE}
+				, #{END_YN}
+				, #{REGP_ID}
+				, SYSDATE
+				, #{REGP_ID}
+				, SYSDATE
+			)
+	</insert>
+	
+	<update id="update" parameterType="mall.web.domain.TB_EVENTIFXM">
+		UPDATE
+			TB_EVENTIFXM
+		SET
+			EVENT_NAME = #{EVENT_NAME}
+			, START_DT = #{START_DT}
+			, END_DT = #{END_DT}
+			, EVENT_DESC = #{EVENT_DESC}
+			, MENU_NAME = #{MENU_NAME}
+			, MENU_YN = #{MENU_YN}
+			, MENU_ORDER = #{MENU_ORDER}
+			, TOP_ATFL = #{TOP_ATFL}
+			, ATFL_ID = #{ATFL_ID}
+			, END_YN = #{END_YN}
+			, TOP_TYPE = #{TOP_TYPE}
+			, MODP_ID = #{REGP_ID}
+			, MOD_DTM = sysdate
+		WHERE EVENT_ID = #{EVENT_ID}
+		  AND SUPR_ID = #{SUPR_ID}
+	</update>	 
+	
+	<update id="delete" parameterType="mall.web.domain.TB_EVENTIFXM">
+		UPDATE
+			TB_EVENTIFXM
+		SET
+			DEL_YN = 'Y'
+			, MODP_ID = #{REGP_ID}
+			, MOD_DTM = SYSDATE
+		WHERE EVENT_ID = #{EVENT_ID}
+		  AND SUPR_ID = #{SUPR_ID}
+	</update>	 
+	
+	<insert id="admgrInsert" parameterType="mall.web.domain.TB_ADPDIFXM">
+		INSERT INTO
+			TB_ADPDIFXM (
+				EVENT_ID
+				, PD_ID
+				, PD_NAME 
+				, PD_PRICE 
+				, SELL_PRICE 
+				, PD_CONS
+				, ATFL_NAME
+				, DEL_YN
+				, ORD
+				, OPT_NAME
+				, OPT_PRICE
+				, UNIT_NAME
+				, REGP_ID
+				, REG_DTM
+				, MODP_ID
+				, MOD_DTM
+			) VALUES (
+				#{EVENT_ID}
+				, #{PD_ID}
+				, #{PD_NAME}
+				, #{PD_PRICE}
+				, #{SELL_PRICE}
+				, #{PD_CONS}
+				, #{PD_ID}||'.jpg'
+				, 'N'
+				, #{ORD} 
+				, #{OPT_NAME}
+				, #{OPT_PRICE}
+				, #{UNIT_NAME}
+				, #{REGP_ID} 
+				, SYSDATE
+				, #{REGP_ID} 
+				, SYSDATE
+			)
+	</insert>
+	
+	<update id="admgrUpdate" parameterType="mall.web.domain.TB_ADPDIFXM">
+		UPDATE
+			TB_ADPDIFXM
+		SET
+			PD_NAME = #{PD_NAME}
+			, PD_PRICE = #{PD_PRICE}
+			, SELL_PRICE = #{SELL_PRICE}
+			, PD_CONS = #{PD_CONS}
+			, DEL_YN = #{DEL_YN}
+			, ORD = #{ORD}
+			, OPT_NAME = #{OPT_NAME}
+			, OPT_PRICE = #{OPT_PRICE}
+			, UNIT_NAME = #{UNIT_NAME}
+		WHERE
+			EVENT_ID = #{EVENT_ID} AND PD_ID = #{PD_ID}
+	</update>	 
+	
+	<insert id="copyAdInsert" parameterType="mall.web.domain.TB_EVENTIFXM">
+		<selectKey keyProperty="EVENT_ID_NEW" order="BEFORE" resultType="String">
+			<include refid="makeAdId" />
+		</selectKey>
+		
+	     INSERT INTO
+            TB_EVENTIFXM (
+                EVENT_ID
+                , AD_NAME
+                , START_DT
+                , END_DT
+                , AD_DESC
+                , TOP_ATFL
+                , REGP_ID
+                , REG_DTM
+                , MODP_ID
+                , MOD_DTM
+            ) SELECT 
+               #{EVENT_ID_NEW}
+                , AD_NAME
+                , START_DT
+                , END_DT
+                , AD_DESC
+                , TOP_ATFL
+                , REGP_ID
+                , REG_DTM
+                , MODP_ID
+                , MOD_DTM   
+              FROM 
+              	TB_EVENTIFXM
+              WHERE 
+              	EVENT_ID = #{EVENT_ID}
+	</insert>
+	
+	<insert id="copyPdInsert" parameterType="mall.web.domain.TB_ADPDIFXM">
+		INSERT INTO
+			TB_ADPDIFXM (
+				EVENT_ID
+				, PD_ID
+				, PD_NAME 
+				, PD_PRICE 
+				, SELL_PRICE 
+				, PD_CONS
+				, ATFL_NAME
+				, DEL_YN
+				, OPT_NAME
+				, OPT_PRICE
+				, UNIT_NAME
+				, REGP_ID
+				, REG_DTM
+				, MODP_ID
+				, MOD_DTM
+			) SELECT
+				#{EVENT_ID_NEW}
+				, PD_ID
+				, PD_NAME 
+				, PD_PRICE 
+				, SELL_PRICE 
+				, PD_CONS
+				, ATFL_NAME
+				, DEL_YN
+				, OPT_NAME
+				, OPT_PRICE
+				, UNIT_NAME
+				, REGP_ID
+				, REG_DTM
+				, MODP_ID
+				, MOD_DTM
+			FROM 
+				TB_ADPDIFXM
+			WHERE 
+				EVENT_ID = #{EVENT_ID}
+	</insert>
+
+	<insert id="excelUpload" parameterType="mall.web.domain.TB_ADPDIFXM">
+		MERGE INTO TB_ADPDIFXM
+		            USING DUAL
+		            ON ( EVENT_ID = #{EVENT_ID} and PD_ID = #{PD_ID} )
+			<if test='CHK_UPDATE != null and CHK_UPDATE != "" and CHK_UPDATE == "Y" '>
+		            WHEN MATCHED THEN
+		                      UPDATE SET
+										  PD_NAME = #{PD_NAME}
+										, PD_PRICE = #{PD_PRICE}
+										, SELL_PRICE = #{SELL_PRICE}
+										, PD_CONS = #{PD_CONS}
+										, ATFL_NAME = #{PD_ID}||'.jpg'
+										, DEL_YN = #{DEL_YN}
+										, ORD = #{ORD}
+										, OPT_NAME = #{OPT_NAME}
+										, OPT_PRICE = #{OPT_PRICE}
+										, UNIT_NAME = #{UNIT_NAME}
+			</if>
+			
+		            WHEN NOT MATCHED THEN
+		                      INSERT (
+										EVENT_ID
+										, PD_ID
+										, PD_NAME 
+										, PD_PRICE 
+										, SELL_PRICE 
+										, PD_CONS
+										, ATFL_NAME
+										, DEL_YN
+										, ORD
+										, OPT_NAME
+										, OPT_PRICE
+										, UNIT_NAME
+										, REGP_ID
+										, REG_DTM
+										, MODP_ID
+										, MOD_DTM
+									) 
+		                     VALUES (
+										#{EVENT_ID}
+										, #{PD_ID}
+										, #{PD_NAME}
+										, #{PD_PRICE}
+										, #{SELL_PRICE}
+										, #{PD_CONS}
+										, #{PD_ID}||'.jpg'
+										, 'N'
+										, #{ORD} 
+										, #{OPT_NAME} 
+										, #{OPT_PRICE} 
+										, #{UNIT_NAME} 
+										, #{REGP_ID} 
+										, SYSDATE
+										, #{REGP_ID} 
+										, SYSDATE
+									)
+	</insert>
+	
+	<insert id="copyInsert" parameterType="mall.web.domain.TB_ADPDIFXM">
+		INSERT INTO
+			TB_ADPDIFXM (
+				EVENT_ID
+				, PD_ID
+				, PD_NAME 
+				, PD_PRICE 
+				, SELL_PRICE 
+				, PD_CONS
+				, ATFL_NAME
+				, DEL_YN
+				, OPT_NAME
+				, OPT_PRICE
+				, UNIT_NAME
+				, REGP_ID
+				, REG_DTM
+				, MODP_ID
+				, MOD_DTM
+			) SELECT
+				#{EVENT_ID_NCOPY}
+				, PD_ID
+				, PD_NAME 
+				, PD_PRICE 
+				, SELL_PRICE 
+				, PD_CONS
+				, ATFL_NAME
+				, DEL_YN
+				, OPT_NAME
+				, OPT_PRICE
+				, UNIT_NAME
+				, REGP_ID
+				, REG_DTM
+				, MODP_ID
+				, MOD_DTM
+			FROM 
+				TB_ADPDIFXM
+            WHERE 
+              	EVENT_ID = #{EVENT_ID} AND PD_ID = #{PD_ID}
+	</insert> 
+
+</mapper>

@@ -1,0 +1,347 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="mall.web.mapper.admin.ReturnOrderMgrMapper">
+	
+	<!-- 공통 where 조건 -->
+	<sql id="searchCondition">
+		<where>	
+			<if test='schGbn == "MEMB_NM"'>
+				<if test="schTxt != null and schTxt != ''">
+				    AND MEMB_NM LIKE '%'||#{schTxt}||'%'
+				</if>	
+			</if>		
+			<if test='schGbn == "RECV_PERS"'>
+				<if test="schTxt != null and schTxt != ''">
+				    AND RECV_PERS LIKE '%'||#{schTxt}||'%'
+				</if>	
+			</if>
+			<if test='schGbn == "COM_NAME"'>
+				<if test="schTxt != null and schTxt != ''">
+				    AND COM_NAME LIKE '%'||#{schTxt}||'%'
+				</if>	
+			</if>
+			<!-- <if test="ORDER_CON != null and ORDER_CON != ''">
+			    AND ORDER_CON = #{ORDER_CON}
+			</if>	
+			<if test="ORDER_CON == null or ORDER_CON == ''">
+			    AND NOT ORDER_CON IN ('ORDER_CON_04','ORDER_CON_08')
+			</if> -->
+			
+			<if test="datepickerStr != null and datepickerStr != ''">
+				AND TO_CHAR(TO_DATE(ORDER_DATE,'YYYY-MM-DD HH24:MI:SS'),'YYYY-MM-DD') <![CDATA[>=]]> #{datepickerStr}
+			</if>
+			<if test="datepickerEnd != null and datepickerEnd != ''">
+				AND TO_CHAR(TO_DATE(ORDER_DATE,'YYYY-MM-DD HH24:MI:SS'),'YYYY-MM-DD') <![CDATA[<=]]> #{datepickerEnd}
+			</if>
+			<if test="schNum != null and schNum != ''">
+				AND ORDER_NUM LIKE '%'||#{schNum}||'%'
+			</if>	
+		
+		</where>  
+	</sql>
+	
+	<!-- 리스트 카운트 -->
+	<select id="count" parameterType="mall.web.domain.TB_RTODINFOXM" resultType="int">
+		SELECT count(*)
+			 FROM
+			(
+			  SELECT  INFO.*
+      			   	     , MEM.COM_NAME
+      			   	     , ODINFO.ORDER_DATE
+			    FROM (
+						SELECT RETURN_NUM
+                             , RETURN_DATE
+                             , MEMB_ID
+                             , FC_GET_MEMBID_NM(MEMB_ID) AS MEMB_NM     /*회원ID명(주문자)*/
+                             , RETURN_AMT
+                             , ORDER_CON
+                             , CNCL_CON
+                             , CNCL_REQDTM
+                             , ORDER_NUM
+                             , DLVY_AMT
+                             , REGP_ID
+                             , REG_DTM
+                             , MODP_ID
+                             , MOD_DTM
+                             , (SELECT COUNT(*)-1 FROM TB_RTODINFOXD WHERE RETURN_NUM = RTOD.RETURN_NUM) AS count /*주문 제품 갯수*/
+                             , (SELECT PD_NAME FROM TB_RTODINFOXD WHERE RETURN_NUM = RTOD.RETURN_NUM AND ROWNUM = 1) AS PD_NAME
+                          FROM TB_RTODINFOXM RTOD
+					    ) INFO
+		          LEFT OUTER JOIN TB_MBINFOXM MEM
+		            ON INFO.MEMB_ID = MEM.MEMB_ID
+	              LEFT OUTER JOIN TB_ODINFOXM ODINFO
+                    ON INFO.ORDER_NUM = ODINFO.ORDER_NUM
+		       )
+		<include refid="searchCondition"/>
+	</select>
+	
+	<!-- 리스트 목록 -->
+	<select id="paginatedList" parameterType="mall.web.domain.TB_RTODINFOXM" resultType="mall.web.domain.TB_RTODINFOXM">
+		<include refid="default.pagerHeader"/>	
+		   SELECT *
+			 FROM
+			(
+			  SELECT  INFO.*
+      			   	     , MEM.COM_NAME
+      			   	     , ODINFO.ORDER_DATE
+			    FROM (
+					SELECT RETURN_NUM
+                             , RETURN_DATE
+                             , MEMB_ID
+                             , FC_GET_MEMBID_NM(MEMB_ID) AS MEMB_NM     /*회원ID명(주문자)*/
+                             , RETURN_AMT
+                             , ORDER_CON
+                             , CNCL_CON
+                             , CNCL_REQDTM
+                             , ORDER_NUM
+                             , DLVY_AMT
+                             , REGP_ID
+                             , REG_DTM
+                             , MODP_ID
+                             , MOD_DTM
+                             , (SELECT COUNT(*)-1 FROM TB_RTODINFOXD WHERE RETURN_NUM = RTOD.RETURN_NUM) AS count /*주문 제품 갯수*/
+                             , (SELECT PD_NAME FROM TB_RTODINFOXD WHERE RETURN_NUM = RTOD.RETURN_NUM AND ROWNUM = 1) AS PD_NAME
+                          FROM TB_RTODINFOXM RTOD      /*주문정보 마스터*/
+				    ) INFO
+			        LEFT OUTER JOIN TB_MBINFOXM MEM
+			        ON INFO.MEMB_ID = MEM.MEMB_ID
+			        LEFT OUTER JOIN TB_ODINFOXM ODINFO
+                    ON INFO.ORDER_NUM = ODINFO.ORDER_NUM
+	        	)
+			<include refid="searchCondition"/>
+			
+			<!-- <if test="ORDER_GUBUN != null and ORDER_GUBUN != ''">
+				<if test='ORDER_GUBUN == "DATE_ORDER"'>
+					<if test='DATE_ORDER == "desc"'>
+						ORDER BY ORDER_DATE desc
+					</if>	
+					<if test='DATE_ORDER == "asc"'>
+						ORDER BY ORDER_DATE asc
+					</if>	
+				</if>
+				<if test='ORDER_GUBUN == "MEMB_NM_ORDER"'>
+					<if test='MEMB_NM_ORDER == "desc"'>
+						ORDER BY MEMB_NM desc, ORDER_NUM ASC
+					</if>	
+					<if test='MEMB_NM_ORDER == "asc"'>
+						ORDER BY MEMB_NM asc, ORDER_NUM ASC
+					</if>
+				</if>
+				<if test='ORDER_GUBUN == "COM_NAME_ORDER"'>
+					<if test='MEMB_NM_ORDER == "desc"'>
+						ORDER BY COM_NAME desc nulls last, ORDER_NUM ASC
+					</if>	
+					<if test='MEMB_NM_ORDER == "asc"'>
+						ORDER BY COM_NAME asc, ORDER_NUM ASC
+					</if>
+				</if>
+				<if test='ORDER_GUBUN == "PAY_DATE_ORDER"'>
+					<if test='PAY_DATE_ORDER == "desc"'>
+						ORDER BY PAY_DTM desc nulls last, ORDER_NUM ASC
+					</if>	
+					<if test='PAY_DATE_ORDER == "asc"'>
+						ORDER BY PAY_DTM asc, ORDER_NUM ASC
+					</if>
+				</if>
+			</if>
+			<if test="ORDER_GUBUN == null or ORDER_GUBUN == ''">
+				ORDER BY ORDER_DATE desc, ORDER_NUM ASC
+			</if> -->
+			ORDER BY RETURN_NUM DESC
+			<include refid="default.pagerFooter"/>
+	</select>
+	
+	<!-- 주문정보 마스터 정보 - 상세화면 -->
+	<select id="getMasterInfo" parameterType="mall.web.domain.TB_RTODINFOXM" resultType="mall.web.domain.TB_RTODINFOXM">
+		SELECT *
+		  FROM (
+		            SELECT RETURN_NUM                                        /*반품번호*/
+		                         , TO_CHAR(TO_DATE(RETURN_DATE,DECODE(LENGTH(RETURN_DATE),8,'YYYYMMDD','YYYYMMDDHH24MISS'))
+		                                                     ,DECODE(LENGTH(RETURN_DATE),8,'yyyy-MM-dd','yyyy-MM-dd HH24:mi:SS')) AS RETURN_DATE    /*주문일자*/
+		                         , A.MEMB_ID                                            /*회원ID (주문자)*/
+		                         , FC_GET_MEMBID_NM(A.MEMB_ID) AS MEMB_NM             /*회원ID명(주문자)*/
+		                         , A.RETURN_AMT                                        /*반품금액*/
+		                         , A.ORDER_NUM                                        /*주문번호*/
+		                         , A.ORDER_CON                                        /*주문상태*/
+		                         , FC_GET_COMCOD_NM(A.ORDER_CON) AS ORDER_CON_NM        /*주문상태 명*/
+		                         , A.CNCL_CON                                            /*취소상태*/
+		                         , A.CNCL_REQDTM
+		                         , A.DLVY_AMT                                            /*배송비*/
+		                         , A.REGP_ID
+		                         , A.REG_DTM
+		                         , A.MODP_ID
+		                         , A.MOD_DTM
+		                         , B.PAY_METD
+		                         , FC_GET_COMCOD_NM(B.PAY_METD) PAY_METD_NM
+		                      FROM TB_RTODINFOXM A, TB_ODINFOXM B                                       /*반품정보 마스터*/
+		                     WHERE A.ORDER_NUM = B.ORDER_NUM
+		            )
+		 WHERE RETURN_NUM = #{RETURN_NUM}
+	</select>
+	<!-- 주문정보 상세 - 상세화면   -->
+	<select id="getDetailsList" parameterType="mall.web.domain.TB_RTODINFOXM" resultType="mall.web.domain.TB_RTODINFOXD">
+		SELECT A.PD_CODE
+		        ,A.PD_NAME
+		        ,D.PD_PRICE AS ORDER_PRICE
+		        ,D.PDDC_VAL AS ORDER_VAL
+		        , CASE WHEN D.PDDC_GUBN = 'PDDC_GUBN_02' THEN D.PD_PRICE - D.PDDC_VAL
+		               WHEN D.PDDC_GUBN = 'PDDC_GUBN_03' THEN D.PD_PRICE - (D.PD_PRICE* D.PDDC_VAL/100)
+		               ELSE D.PD_PRICE
+		          END AS ORDER_REAL_PRICE    
+		        , D.ORDER_QTY AS ORDER_QTY
+		        , A.RETURN_QTY 
+		        , A.PD_PRICE
+		        , A.PDDC_GUBN
+                , A.PDDC_VAL
+		        , CASE WHEN A.PDDC_GUBN = 'PDDC_GUBN_02' THEN A.PD_PRICE - A.PDDC_VAL
+		               WHEN A.PDDC_GUBN = 'PDDC_GUBN_03' THEN A.PD_PRICE - (A.PD_PRICE* A.PDDC_VAL/100)
+		               ELSE A.PD_PRICE
+		          END REAL_PRICE   
+		        , A.RETURN_GBN
+		        , A.RETURN_DTNUM
+		  FROM TB_RTODINFOXD A, TB_RTODINFOXM B, TB_ODINFOXM C, TB_ODINFOXD D
+		 WHERE A.RETURN_NUM = B.RETURN_NUM
+		   AND B.ORDER_NUM = C.ORDER_NUM
+		   AND C.ORDER_NUM = D.ORDER_NUM
+		   AND D.ORDER_DTNUM = A.ORDER_DTNUM
+		   AND A.RETURN_NUM = #{RETURN_NUM} 
+		   <!-- AND A.RETURN_QTY > 0 -->
+		 ORDER BY A.RETURN_DTNUM    
+	</select>
+	
+	<insert id="rtOdInfoXmInsert" parameterType="mall.web.domain.TB_RTODINFOXM">
+		<selectKey keyProperty="RETURN_NUM" resultType="String" order="BEFORE">    
+			SELECT TO_CHAR(SYSDATE, 'YYYYMMDD') || '-' || LPAD(NVL(MAX(SUBSTR(RETURN_NUM, 10, 4)),0)+1, 4, 0) 
+			FROM TB_RTODINFOXM WHERE SUBSTR(RETURN_NUM, 0, 8) = TO_CHAR(SYSDATE, 'YYYYMMDD')
+		</selectKey>
+		INSERT INTO 
+			TB_RTODINFOXM(
+				RETURN_NUM
+				,RETURN_DATE
+				,MEMB_ID
+				,RETURN_AMT
+				,ORDER_CON
+				<!-- ,CNCL_CON
+				,CNCL_REQDTM -->
+				,ORDER_NUM
+				,DLVY_AMT
+				,REGP_ID
+				,REG_DTM
+				,MODP_ID
+				,MOD_DTM
+			)
+			VALUES (
+				#{RETURN_NUM}
+				,#{RETURN_DATE} <!-- TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS') -->
+				,#{MEMB_ID}
+				,#{RETURN_AMT}
+				,'ORDER_CON_10'
+				<!-- ,#{CNCL_CON}
+				,#{CNCL_REQDTM} -->
+				,#{ORDER_NUM}
+				,#{DLVY_AMT}
+				,#{REGP_ID}
+				,SYSDATE
+				,#{MODP_ID}
+				,SYSDATE
+			)
+		
+	
+	</insert>
+	
+	<insert id="rtOdInfoXdInsert" parameterType="mall.web.domain.TB_RTODINFOXD">
+		INSERT INTO 
+			TB_RTODINFOXD (
+				RETURN_DTNUM
+                , RETURN_NUM
+                , PD_CODE
+                , PD_NAME
+                , PD_PRICE
+                , PDDC_GUBN
+                , PDDC_VAL
+                , RETURN_QTY
+                , RETURN_AMT
+                , RETURN_GBN
+                , REGP_ID
+                , REG_DTM
+                , MODP_ID
+                , MOD_DTM
+                , ORDER_DTNUM
+            ) VALUES (
+			     (SELECT NVL(MAX(RETURN_DTNUM),0)+1 FROM TB_RTODINFOXD WHERE RETURN_NUM = #{RETURN_NUM})
+				 , #{RETURN_NUM}
+                 , #{PD_CODE}
+                 , #{PD_NAME}
+                 , #{PD_PRICE}
+                 , #{PDDC_GUBN}
+                 , #{PDDC_VAL}
+                 , #{RETURN_QTY}
+			     , #{RETURN_AMT}
+			     , #{RETURN_GBN}
+                 , #{REGP_ID}
+                 , SYSDATE
+                 , #{MODP_ID}
+                 , SYSDATE
+                 , #{ORDER_DTNUM}
+			)
+	</insert>
+	
+	<update id="update" parameterType="mall.web.domain.TB_RTODINFOXD">
+		UPDATE TB_RTODINFOXD
+		   SET 
+		       RETURN_QTY   = #{RETURN_QTY},
+		       RETURN_GBN   = #{RETURN_GBN},
+		       RETURN_AMT   = #{RETURN_AMT},
+		       MODP_ID      = #{MODP_ID},
+		       MOD_DTM      = SYSDATE
+		WHERE  RETURN_DTNUM = #{RETURN_DTNUM}
+		AND    RETURN_NUM   = #{RETURN_NUM}
+	</update>
+	
+	<update id="updateMaster" parameterType="mall.web.domain.TB_RTODINFOXM">
+		UPDATE TB_RTODINFOXM
+		   SET 
+		       DLVY_AMT   = #{DLVY_AMT},
+		       MODP_ID      = #{MODP_ID},
+		       MOD_DTM      = SYSDATE
+		WHERE  RETURN_NUM   = #{RETURN_NUM}
+	</update>
+	
+	<!--  -->
+	
+	<!-- 주문번호에 해당하는 반품내역 카운트 -->
+	<select id="ordCheck" parameterType="mall.web.domain.TB_RTODINFOXM" resultType="int">
+		SELECT count(*)
+		FROM (
+					SELECT	 INFO.*      			   	     
+								,ODINFO.ORDER_DATE
+					FROM (
+								SELECT 	  RETURN_NUM
+											, RETURN_DATE
+                             				, MEMB_ID
+                             				, FC_GET_MEMBID_NM(MEMB_ID) AS MEMB_NM     /*회원ID명(주문자)*/
+                             				, RETURN_AMT
+											, ORDER_CON
+											, CNCL_CON
+											, CNCL_REQDTM
+											, ORDER_NUM
+											, DLVY_AMT
+											, REGP_ID
+											, REG_DTM
+											, MODP_ID
+											, MOD_DTM
+											, (SELECT COUNT(*)-1 FROM TB_RTODINFOXD WHERE RETURN_NUM = RTOD.RETURN_NUM) AS count /*주문 제품 갯수*/
+											, (SELECT PD_NAME FROM TB_RTODINFOXD WHERE RETURN_NUM = RTOD.RETURN_NUM AND ROWNUM = 1) AS PD_NAME
+								FROM TB_RTODINFOXM RTOD
+							) INFO
+	              LEFT OUTER JOIN TB_ODINFOXM ODINFO
+                    ON INFO.ORDER_NUM = ODINFO.ORDER_NUM
+		       )
+		WHERE 1=1
+		    AND ORDER_NUM = #{ORDER_NUM}
+		    <!-- AND MEMB_ID = #{MEMB_ID} -->
+		<include refid="searchCondition"/>
+	</select>
+	
+</mapper>

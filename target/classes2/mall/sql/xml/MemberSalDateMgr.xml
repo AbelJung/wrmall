@@ -1,0 +1,833 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="mall.web.mapper.admin.MemberSalDateMgrMapper">
+	<sql id="searchCondition">
+		<where>	
+			<if test="MEMB_NAME != null and MEMB_NAME != ''">
+			    MEMB_NAME = #{MEMB_NAME}
+			</if>	
+			<!-- <if test="MEMB_GUBN != null and MEMB_GUBN != ''">
+			    AND MEMB_GUBN = #{MEMB_GUBN}
+			</if>	 -->
+			<if test="schGbn != null and schGbn != ''">
+				<if test='schGbn == "SUPR_NAME"'>
+					<if test="schTxt != null and schTxt != ''">
+					    AND SUPR_NAME LIKE '%' || #{schTxt} || '%'
+					</if>	
+				</if>		
+				<if test='schGbn == "COM_NAME"'>
+					<if test="schTxt != null and schTxt != ''">
+					    AND COM_NAME LIKE '%' || #{schTxt} || '%'
+					</if>	
+				</if>			
+				<if test='schGbn == "MEMB_NAME"'>
+					<if test="schTxt != null and schTxt != ''">
+					    AND MEMB_NAME LIKE '%' || #{schTxt} || '%'
+					</if>	
+				</if>	
+			</if>
+			<if test="PAY_METD != null and PAY_METD != ''">
+					AND PAY_METD = #{PAY_METD}	
+			</if>
+			
+			<if test="datepickerStr != null and datepickerStr != ''">
+				AND TO_CHAR(TO_DATE(ORDER_DATE,'YYYY-MM-DD HH24:MI:SS'),'YYYY-MM-DD') <![CDATA[>=]]> #{datepickerStr}
+			</if>
+			<if test="datepickerEnd != null and datepickerEnd != ''">
+				 AND TO_CHAR(TO_DATE(ORDER_DATE,'YYYY-MM-DD HH24:MI:SS'),'YYYY-MM-DD') <![CDATA[<=]]> #{datepickerEnd}
+			</if>
+		</where>  
+	</sql>
+
+	<select id="count" parameterType="mall.web.domain.TB_MBINFOXM" resultType="int">
+	     WITH HH AS (
+                SELECT A.MEMB_ID,
+                         A.MEMB_NAME,
+                         A.COM_NAME,
+                         A.COM_BUNB,
+                         TO_CHAR(B.PAY_DTM,'YYYYMMDD') AS ORDER_DATE,
+                         SUM (DECODE (D.TAX_GUBN, 'TAX_GUBN_01', C.ORDER_AMT, 0)) AS TAX_GUBN_01_SUM,
+                         SUM (DECODE (D.TAX_GUBN, 'TAX_GUBN_02', C.ORDER_AMT, 0)) AS TAX_GUBN_02_SUM,
+                         (SELECT SUM (DLVY_AMT)
+                            FROM TB_ODINFOXM
+                           WHERE MEMB_ID = A.MEMB_ID
+                             AND ORDER_CON IN
+                                    ('ORDER_CON_02',
+                                     'ORDER_CON_03',
+                                     'ORDER_CON_05',
+                                     'ORDER_CON_06',
+                                     'ORDER_CON_08')
+                             AND TO_CHAR(PAY_DTM,'YYYYMMDD') = TO_CHAR(B.PAY_DTM,'YYYYMMDD')
+                          ) AS DLVY_AMT_SUM,
+                         SUM (C.ORDER_AMT) AS ORDER_AMT_SUM_BEFORE,
+                         A.MEMB_BADR,
+                         A.MEMB_MAIL,
+                         B.PAY_METD
+                    FROM TB_MBINFOXM A,
+                         TB_ODINFOXM B,
+                         TB_ODINFOXD C,
+                         TB_PDINFOXM D
+                   WHERE A.MEMB_ID = B.MEMB_ID
+                     AND B.ORDER_NUM = C.ORDER_NUM
+                     AND C.PD_CODE = D.PD_CODE
+                     AND B.ORDER_CON IN
+                            ('ORDER_CON_02',
+                             'ORDER_CON_03',
+                             'ORDER_CON_05',
+                             'ORDER_CON_06',
+                             'ORDER_CON_08')
+                     AND B.PAY_AMT IS NOT NULL
+                GROUP BY A.MEMB_ID,
+                         A.MEMB_GUBN,
+                         A.MEMB_NAME,
+                         A.MEMB_BADR,
+                         A.MEMB_MAIL,
+                         A.COM_NAME,
+                         A.COM_BUNB,
+                         TO_CHAR(B.PAY_DTM,'YYYYMMDD'),
+                         B.PAY_METD
+		            ),
+		       SS AS (
+		                SELECT A.MEMB_ID,
+		                       FC_GET_COMCOD_NM (A.MEMB_GUBN) MEMB_GUBN_NM,
+		                       A.MEMB_NAME,
+		                       A.MEMB_MAIL,
+		                       A.COM_NAME,
+		                       A.COM_BUNB,
+		                       A.COM_BADR,
+		                       A.COM_DADR,
+		                       TO_CHAR(E.PAY_DTM,'YYYYMMDD') AS ORDER_DATE
+		                  ,(SELECT SUM (DLVY_AMT)
+		                      FROM TB_RTODINFOXM
+		                     WHERE MEMB_ID = A.MEMB_ID)
+		                      AS DLVY_AMT_SUM,
+		                   SUM (C.RETURN_AMT) AS ORDER_AMT_SUM_BEFORE,
+		                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_01', C.RETURN_AMT, 0)) AS TAX_GUBN_01_SUM,
+		                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_02', C.RETURN_AMT, 0)) AS TAX_GUBN_02_SUM
+		              FROM TB_MBINFOXM A, TB_RTODINFOXM B, TB_RTODINFOXD C, TB_PDINFOXM D , TB_ODINFOXM E
+		             WHERE A.MEMB_ID = B.MEMB_ID
+		               AND B.RETURN_NUM = C.RETURN_NUM
+		               AND C.PD_CODE = D.PD_CODE
+		               AND B.ORDER_NUM = E.ORDER_NUM
+		               AND E.ORDER_CON IN
+		                          ('ORDER_CON_02',
+		                           'ORDER_CON_03',
+		                           'ORDER_CON_05',
+		                           'ORDER_CON_06',
+		                           'ORDER_CON_08')
+		              GROUP BY A.MEMB_ID,
+		                       A.MEMB_GUBN,
+		                       A.MEMB_NAME,
+		                       A.MEMB_MAIL,
+		                       A.COM_NAME,
+		                       A.COM_BUNB,
+		                       A.COM_BADR,
+		                       A.COM_DADR,
+		                       TO_CHAR(E.PAY_DTM,'YYYYMMDD'),
+		                       E.PAY_METD
+		           )
+		SELECT COUNT(*)
+		  FROM (  SELECT NVL (HH.MEMB_ID, SS.MEMB_ID) AS MEMB_ID,
+                         NVL (HH.MEMB_NAME, SS.MEMB_NAME) AS MEMB_NAME,
+                         SS.MEMB_NAME AS MEMB_NAME2,
+                         HH.ORDER_DATE AS ORDER_DATE,
+                         NVL (HH.MEMB_MAIL, SS.MEMB_MAIL) AS MEMB_MAIL,
+                         NVL (HH.COM_NAME, SS.COM_NAME) AS COM_NAME,
+                         NVL (HH.COM_BUNB, SS.COM_BUNB) AS COM_BUNB,
+                         HH.DLVY_AMT_SUM AS DLVY_AMT_SUM,
+                         HH.ORDER_AMT_SUM_BEFORE AS ORDER_AMT_SUM_BEFORE,
+                         HH.TAX_GUBN_01_SUM AS TAX_GUBN_01_SUM,
+                         HH.TAX_GUBN_02_SUM AS TAX_GUBN_02_SUM,
+                         HH.ORDER_AMT_SUM_BEFORE + HH.DLVY_AMT_SUM
+                            AS ORDER_AMT_SUM,
+                         SS.DLVY_AMT_SUM AS DLVY_AMT_SUM_RT,
+                         SS.ORDER_AMT_SUM_BEFORE
+                            AS ORDER_AMT_SUM_BEFORE_RT,
+                         SS.TAX_GUBN_01_SUM AS TAX_GUBN_01_SUM_RT,
+                         SS.TAX_GUBN_02_SUM AS TAX_GUBN_02_SUM_RT
+                    FROM HH FULL OUTER JOIN SS ON HH.MEMB_ID = SS.MEMB_ID
+		       )
+		<include refid="searchCondition"/>
+	</select>
+	
+	<select id="paginatedList" parameterType="mall.web.domain.TB_MBINFOXM" resultType="mall.web.domain.TB_MBINFOXM">
+		<include refid="default.pagerHeader"/>	
+			WITH HH AS (
+                SELECT A.MEMB_ID,
+                         A.MEMB_NAME,
+                         A.COM_NAME,
+                         A.COM_BUNB,
+                         TO_CHAR(B.PAY_DTM,'YYYYMMDD') AS ORDER_DATE,
+                         SUM (DECODE (D.TAX_GUBN, 'TAX_GUBN_01', C.ORDER_AMT, 0)) AS TAX_GUBN_01_SUM,
+                         SUM (DECODE (D.TAX_GUBN, 'TAX_GUBN_02', C.ORDER_AMT, 0)) AS TAX_GUBN_02_SUM,
+                         (SELECT SUM (DLVY_AMT)
+                            FROM TB_ODINFOXM
+                           WHERE MEMB_ID = A.MEMB_ID
+                             AND ORDER_CON IN
+                                    ('ORDER_CON_02',
+                                     'ORDER_CON_03',
+                                     'ORDER_CON_05',
+                                     'ORDER_CON_06',
+                                     'ORDER_CON_08')
+                             AND TO_CHAR(PAY_DTM,'YYYYMMDD') = TO_CHAR(B.PAY_DTM,'YYYYMMDD')
+                          ) AS DLVY_AMT_SUM,
+                         SUM (C.ORDER_AMT) AS ORDER_AMT_SUM_BEFORE,
+                         A.MEMB_BADR,
+                         A.MEMB_MAIL,
+                         B.PAY_METD
+                    FROM TB_MBINFOXM A,
+                         TB_ODINFOXM B,
+                         TB_ODINFOXD C,
+                         TB_PDINFOXM D
+                   WHERE A.MEMB_ID = B.MEMB_ID
+                     AND B.ORDER_NUM = C.ORDER_NUM
+                     AND C.PD_CODE = D.PD_CODE
+                     AND B.ORDER_CON IN
+                            ('ORDER_CON_02',
+                             'ORDER_CON_03',
+                             'ORDER_CON_05',
+                             'ORDER_CON_06',
+                             'ORDER_CON_08')
+                     AND B.PAY_AMT IS NOT NULL
+                GROUP BY A.MEMB_ID,
+                         A.MEMB_GUBN,
+                         A.MEMB_NAME,
+                         A.MEMB_BADR,
+                         A.MEMB_MAIL,
+                         A.COM_NAME,
+                         A.COM_BUNB,
+                         TO_CHAR(B.PAY_DTM,'YYYYMMDD'),
+                         B.PAY_METD
+		            ),
+		       SS AS (
+		                SELECT A.MEMB_ID,
+		                       FC_GET_COMCOD_NM (A.MEMB_GUBN) MEMB_GUBN_NM,
+		                       A.MEMB_NAME,
+		                       A.MEMB_MAIL,
+		                       A.COM_NAME,
+		                       A.COM_BUNB,
+		                       A.COM_BADR,
+		                       A.COM_DADR,
+		                       TO_CHAR(E.PAY_DTM,'YYYYMMDD') AS ORDER_DATE
+		                  ,(SELECT SUM (DLVY_AMT)
+		                      FROM TB_RTODINFOXM
+		                     WHERE MEMB_ID = A.MEMB_ID)
+		                      AS DLVY_AMT_SUM,
+		                   SUM (C.RETURN_AMT) AS ORDER_AMT_SUM_BEFORE,
+		                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_01', C.RETURN_AMT, 0)) AS TAX_GUBN_01_SUM,
+		                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_02', C.RETURN_AMT, 0)) AS TAX_GUBN_02_SUM
+		              FROM TB_MBINFOXM A, TB_RTODINFOXM B, TB_RTODINFOXD C, TB_PDINFOXM D , TB_ODINFOXM E
+		             WHERE A.MEMB_ID = B.MEMB_ID
+		               AND B.RETURN_NUM = C.RETURN_NUM
+		               AND C.PD_CODE = D.PD_CODE
+		               AND B.ORDER_NUM = E.ORDER_NUM
+		               AND E.ORDER_CON IN
+		                          ('ORDER_CON_02',
+		                           'ORDER_CON_03',
+		                           'ORDER_CON_05',
+		                           'ORDER_CON_06',
+		                           'ORDER_CON_08')
+		              GROUP BY A.MEMB_ID,
+		                       A.MEMB_GUBN,
+		                       A.MEMB_NAME,
+		                       A.MEMB_MAIL,
+		                       A.COM_NAME,
+		                       A.COM_BUNB,
+		                       A.COM_BADR,
+		                       A.COM_DADR,
+		                       TO_CHAR(E.PAY_DTM,'YYYYMMDD'),
+		                       E.PAY_METD
+		           )
+	  SELECT *
+		FROM ( SELECT NVL (HH.MEMB_ID, SS.MEMB_ID) AS MEMB_ID,
+                      NVL (HH.MEMB_NAME, SS.MEMB_NAME) AS MEMB_NAME,
+                      SS.MEMB_NAME AS MEMB_NAME2,
+                      HH.ORDER_DATE AS ORDER_DATE,
+                      NVL (HH.MEMB_MAIL, SS.MEMB_MAIL) AS MEMB_MAIL,
+                      NVL (HH.COM_NAME, SS.COM_NAME) AS COM_NAME,
+                      NVL (HH.COM_BUNB, SS.COM_BUNB) AS COM_BUNB,
+                      HH.DLVY_AMT_SUM AS DLVY_AMT_SUM,
+                      HH.ORDER_AMT_SUM_BEFORE AS ORDER_AMT_SUM_BEFORE,
+                      HH.TAX_GUBN_01_SUM AS TAX_GUBN_01_SUM,
+                      HH.TAX_GUBN_02_SUM AS TAX_GUBN_02_SUM,
+                      HH.ORDER_AMT_SUM_BEFORE + HH.DLVY_AMT_SUM
+                         AS ORDER_AMT_SUM,
+                      SS.DLVY_AMT_SUM AS DLVY_AMT_SUM_RT,
+                      SS.ORDER_AMT_SUM_BEFORE
+                         AS ORDER_AMT_SUM_BEFORE_RT,
+                      SS.TAX_GUBN_01_SUM AS TAX_GUBN_01_SUM_RT,
+                      SS.TAX_GUBN_02_SUM AS TAX_GUBN_02_SUM_RT
+                 FROM HH FULL OUTER JOIN SS ON HH.MEMB_ID = SS.MEMB_ID
+	          )
+		
+		<include refid="searchCondition"/>
+			<if test="MEMB_ORD_GUBUN != null and MEMB_ORD_GUBUN != ''">
+				<if test='MEMB_ORD_GUBUN == "DATE_ORDER"'>
+					<if test='DATE_ORDER == "desc"'>
+						ORDER BY ORDER_DATE desc
+					</if>	
+					<if test='DATE_ORDER == "asc"'>
+						ORDER BY ORDER_DATE asc
+					</if>	
+				</if>
+				<if test='MEMB_ORD_GUBUN == "MEMB_NM_ORDER"'>
+					<if test='MEMB_NM_ORDER == "desc"'>
+						ORDER BY MEMB_NAME desc
+					</if>	
+					<if test='MEMB_NM_ORDER == "asc"'>
+						ORDER BY MEMB_NAME asc
+					</if>
+				</if>
+				<if test='MEMB_ORD_GUBUN == "MEMB_ID_ORDER"'>
+					<if test='MEMB_ID_ORDER == "desc"'>
+						ORDER BY MEMB_ID desc
+					</if>	
+					<if test='MEMB_ID_ORDER == "asc"'>
+						ORDER BY MEMB_ID asc
+					</if>
+				</if>
+			</if>
+			<if test="MEMB_ORD_GUBUN == null or MEMB_ORD_GUBUN == ''">
+				ORDER BY ORDER_DATE DESC NULLS LAST
+			</if>
+		<include refid="default.pagerFooter"/>
+	</select>
+	
+	<select id="excelList" parameterType="mall.web.domain.TB_MBINFOXM" resultType="HashMap">
+	WITH HH AS (
+                SELECT A.MEMB_ID,
+                         A.MEMB_NAME,
+                         A.COM_NAME,
+                         A.COM_BUNB,
+                         TO_CHAR(B.PAY_DTM,'YYYYMMDD') AS ORDER_DATE,
+                         SUM (DECODE (D.TAX_GUBN, 'TAX_GUBN_01', C.ORDER_AMT, 0)) AS TAX_GUBN_01_SUM,
+                         SUM (DECODE (D.TAX_GUBN, 'TAX_GUBN_02', C.ORDER_AMT, 0)) AS TAX_GUBN_02_SUM,
+                         (SELECT SUM (DLVY_AMT)
+                            FROM TB_ODINFOXM
+                           WHERE MEMB_ID = A.MEMB_ID
+                             AND ORDER_CON IN
+                                    ('ORDER_CON_02',
+                                     'ORDER_CON_03',
+                                     'ORDER_CON_05',
+                                     'ORDER_CON_06',
+                                     'ORDER_CON_08')
+                             AND TO_CHAR(PAY_DTM,'YYYYMMDD') = TO_CHAR(B.PAY_DTM,'YYYYMMDD')
+                          ) AS DLVY_AMT_SUM,
+                         SUM (C.ORDER_AMT) AS ORDER_AMT_SUM_BEFORE,
+                         A.MEMB_BADR,
+                         A.MEMB_MAIL,
+                         B.PAY_METD
+                    FROM TB_MBINFOXM A,
+                         TB_ODINFOXM B,
+                         TB_ODINFOXD C,
+                         TB_PDINFOXM D
+                   WHERE A.MEMB_ID = B.MEMB_ID
+                     AND B.ORDER_NUM = C.ORDER_NUM
+                     AND C.PD_CODE = D.PD_CODE
+                     AND B.ORDER_CON IN
+                            ('ORDER_CON_02',
+                             'ORDER_CON_03',
+                             'ORDER_CON_05',
+                             'ORDER_CON_06',
+                             'ORDER_CON_08')
+                     AND B.PAY_AMT IS NOT NULL
+                GROUP BY A.MEMB_ID,
+                         A.MEMB_GUBN,
+                         A.MEMB_NAME,
+                         A.MEMB_BADR,
+                         A.MEMB_MAIL,
+                         A.COM_NAME,
+                         A.COM_BUNB,
+                         TO_CHAR(B.PAY_DTM,'YYYYMMDD'),
+                         B.PAY_METD
+		            ),
+		       SS AS (
+		                SELECT A.MEMB_ID,
+		                       FC_GET_COMCOD_NM (A.MEMB_GUBN) MEMB_GUBN_NM,
+		                       A.MEMB_NAME,
+		                       A.MEMB_MAIL,
+		                       A.COM_NAME,
+		                       A.COM_BUNB,
+		                       A.COM_BADR,
+		                       A.COM_DADR,
+		                       TO_CHAR(E.PAY_DTM,'YYYYMMDD') AS ORDER_DATE
+		                  ,(SELECT SUM (DLVY_AMT)
+		                      FROM TB_RTODINFOXM
+		                     WHERE MEMB_ID = A.MEMB_ID)
+		                      AS DLVY_AMT_SUM,
+		                   SUM (C.RETURN_AMT) AS ORDER_AMT_SUM_BEFORE,
+		                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_01', C.RETURN_AMT, 0)) AS TAX_GUBN_01_SUM,
+		                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_02', C.RETURN_AMT, 0)) AS TAX_GUBN_02_SUM
+		              FROM TB_MBINFOXM A, TB_RTODINFOXM B, TB_RTODINFOXD C, TB_PDINFOXM D , TB_ODINFOXM E
+		             WHERE A.MEMB_ID = B.MEMB_ID
+		               AND B.RETURN_NUM = C.RETURN_NUM
+		               AND C.PD_CODE = D.PD_CODE
+		               AND B.ORDER_NUM = E.ORDER_NUM
+		               AND E.ORDER_CON IN
+		                          ('ORDER_CON_02',
+		                           'ORDER_CON_03',
+		                           'ORDER_CON_05',
+		                           'ORDER_CON_06',
+		                           'ORDER_CON_08')
+		              GROUP BY A.MEMB_ID,
+		                       A.MEMB_GUBN,
+		                       A.MEMB_NAME,
+		                       A.MEMB_MAIL,
+		                       A.COM_NAME,
+		                       A.COM_BUNB,
+		                       A.COM_BADR,
+		                       A.COM_DADR,
+		                       TO_CHAR(E.PAY_DTM,'YYYYMMDD'),
+		                       E.PAY_METD
+		           )
+		SELECT *
+		  FROM ( SELECT NVL (HH.MEMB_ID, SS.MEMB_ID) AS MEMB_ID,
+                        NVL (HH.MEMB_NAME, SS.MEMB_NAME) AS MEMB_NAME,
+                        SS.MEMB_NAME AS MEMB_NAME2,
+                        HH.ORDER_DATE AS ORDER_DATE,
+                        NVL (HH.MEMB_MAIL, SS.MEMB_MAIL) AS MEMB_MAIL,
+                        NVL (HH.COM_NAME, SS.COM_NAME) AS COM_NAME,
+                        NVL (HH.COM_BUNB, SS.COM_BUNB) AS COM_BUNB,
+                        HH.DLVY_AMT_SUM AS DLVY_AMT_SUM,
+                        HH.ORDER_AMT_SUM_BEFORE AS ORDER_AMT_SUM_BEFORE,
+                        HH.TAX_GUBN_01_SUM AS TAX_GUBN_01_SUM,
+                        HH.TAX_GUBN_02_SUM AS TAX_GUBN_02_SUM,
+                        HH.ORDER_AMT_SUM_BEFORE + HH.DLVY_AMT_SUM
+                           AS ORDER_AMT_SUM,
+                        SS.DLVY_AMT_SUM AS DLVY_AMT_SUM_RT,
+                        SS.ORDER_AMT_SUM_BEFORE
+                           AS ORDER_AMT_SUM_BEFORE_RT,
+                        SS.TAX_GUBN_01_SUM AS TAX_GUBN_01_SUM_RT,
+                        SS.TAX_GUBN_02_SUM AS TAX_GUBN_02_SUM_RT
+                   FROM HH FULL OUTER JOIN SS ON HH.MEMB_ID = SS.MEMB_ID
+	            )
+			<include refid="searchCondition"/>
+			ORDER BY ORDER_DATE DESC NULLS LAST
+	</select>
+
+	
+	<select id="dateList" parameterType="mall.web.domain.TB_MBINFOXM" resultType="mall.web.domain.TB_MBINFOXM">
+		<include refid="default.pagerHeader"/>
+		WITH HH AS (
+            SELECT A.MEMB_ID,
+                     B.MEMB_NAME,
+                     B.COM_BUNB,
+                     B.COM_NAME
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 1, PAY_AMT,0)) AS DAY1
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 2, PAY_AMT,0)) AS DAY2
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 3, PAY_AMT,0)) AS DAY3
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 4, PAY_AMT,0)) AS DAY4
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 5, PAY_AMT,0)) AS DAY5
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 6, PAY_AMT,0)) AS DAY6
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 7, PAY_AMT,0)) AS DAY7
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 8, PAY_AMT,0)) AS DAY8
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 9, PAY_AMT,0)) AS DAY9
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 10, PAY_AMT,0)) AS DAY10
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 11, PAY_AMT,0)) AS DAY11
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 12, PAY_AMT,0)) AS DAY12
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 13, PAY_AMT,0)) AS DAY13
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 14, PAY_AMT,0)) AS DAY14
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 15, PAY_AMT,0)) AS DAY15
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 16, PAY_AMT,0)) AS DAY16
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 17, PAY_AMT,0)) AS DAY17
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 18, PAY_AMT,0)) AS DAY18
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 19, PAY_AMT,0)) AS DAY19
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 20, PAY_AMT,0)) AS DAY20
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 21, PAY_AMT,0)) AS DAY21
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 22, PAY_AMT,0)) AS DAY22
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 23, PAY_AMT,0)) AS DAY23
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 24, PAY_AMT,0)) AS DAY24
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 25, PAY_AMT,0)) AS DAY25
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 26, PAY_AMT,0)) AS DAY26
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 27, PAY_AMT,0)) AS DAY27
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 28, PAY_AMT,0)) AS DAY28
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 29, PAY_AMT,0)) AS DAY29
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 30, PAY_AMT,0)) AS DAY30
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 31, PAY_AMT,0)) AS DAY31
+                FROM TB_ODINFOXM A, TB_MBINFOXM B
+               WHERE     A.MEMB_ID = B.MEMB_ID
+                     AND TO_CHAR (PAY_DTM, 'YYYYMMDD') LIKE '%' || #{datepickerStr} || '%'
+                     AND A.ORDER_CON IN
+                            ('ORDER_CON_02',
+                             'ORDER_CON_03',
+                             'ORDER_CON_05',
+                             'ORDER_CON_06',
+                             'ORDER_CON_08')
+                     AND PAY_AMT IS NOT NULL
+                     <if test="PAY_METD != null and PAY_METD != ''">
+                            AND PAY_METD = #{PAY_METD}    
+                       </if>
+                       <if test="schGbn != null and schGbn != ''">
+                            <if test='schGbn == "COM_BUNB"'>
+                                <if test="schTxt != null and schTxt != ''">
+                                    AND COM_BUNB LIKE '%' || #{schTxt} || '%'
+                                </if>    
+                            </if>        
+                            <if test='schGbn == "COM_NAME"'>
+                                <if test="schTxt != null and schTxt != ''">
+                                    AND COM_NAME LIKE '%' || #{schTxt} || '%'
+                                </if>    
+                            </if>            
+                            <if test='schGbn == "MEMB_NAME"'>
+                                <if test="schTxt != null and schTxt != ''">
+                                    AND MEMB_NAME LIKE '%' || #{schTxt} || '%'
+                                </if>    
+                            </if>    
+                        </if>
+		            GROUP BY A.MEMB_ID,
+		                     B.MEMB_NAME,
+		                     B.COM_BUNB,
+		                     B.COM_NAME
+		                     
+		           ),
+		     SS AS (
+		            SELECT A.MEMB_ID,
+		                 B.MEMB_NAME,
+		                 B.COM_BUNB,
+		                 B.COM_NAME
+		                ,C.RETURN_DATE
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 1, RETURN_AMT,0)) AS DAY1
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 2, RETURN_AMT,0)) AS DAY2
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 3, RETURN_AMT,0)) AS DAY3
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 4, RETURN_AMT,0)) AS DAY4
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 5, RETURN_AMT,0)) AS DAY5
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 6, RETURN_AMT,0)) AS DAY6
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 7, RETURN_AMT,0)) AS DAY7
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 8, RETURN_AMT,0)) AS DAY8
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 9, RETURN_AMT,0)) AS DAY9
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 10, RETURN_AMT,0)) AS DAY10
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 11, RETURN_AMT,0)) AS DAY11
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 12, RETURN_AMT,0)) AS DAY12
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 13, RETURN_AMT,0)) AS DAY13
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 14, RETURN_AMT,0)) AS DAY14
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 15, RETURN_AMT,0)) AS DAY15
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 16, RETURN_AMT,0)) AS DAY16
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 17, RETURN_AMT,0)) AS DAY17
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 18, RETURN_AMT,0)) AS DAY18
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 19, RETURN_AMT,0)) AS DAY19
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 20, RETURN_AMT,0)) AS DAY20
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 21, RETURN_AMT,0)) AS DAY21
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 22, RETURN_AMT,0)) AS DAY22
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 23, RETURN_AMT,0)) AS DAY23
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 24, RETURN_AMT,0)) AS DAY24
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 25, RETURN_AMT,0)) AS DAY25
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 26, RETURN_AMT,0)) AS DAY26
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 27, RETURN_AMT,0)) AS DAY27
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 28, RETURN_AMT,0)) AS DAY28
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 29, RETURN_AMT,0)) AS DAY29
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 30, RETURN_AMT,0)) AS DAY30
+		                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 31, RETURN_AMT,0)) AS DAY31
+		            FROM TB_ODINFOXM A, TB_MBINFOXM B, TB_RTODINFOXM C
+		           WHERE     A.MEMB_ID = B.MEMB_ID
+		                 AND A.ORDER_NUM = C.ORDER_NUM(+)
+		                 AND SUBSTR(RETURN_DATE,1,6) LIKE '%' || #{datepickerStr}|| '%'
+		                 AND RETURN_AMT IS NOT NULL
+		                 <if test="schGbn != null and schGbn != ''">
+		                        <if test='schGbn == "COM_BUNB"'>
+		                            <if test="schTxt != null and schTxt != ''">
+		                                AND COM_BUNB LIKE '%' || #{schTxt} || '%'
+		                            </if>    
+		                        </if>        
+		                        <if test='schGbn == "COM_NAME"'>
+		                            <if test="schTxt != null and schTxt != ''">
+		                                AND COM_NAME LIKE '%' || #{schTxt} || '%'
+		                            </if>    
+		                        </if>            
+		                        <if test='schGbn == "MEMB_NAME"'>
+		                            <if test="schTxt != null and schTxt != ''">
+		                                AND MEMB_NAME LIKE '%' || #{schTxt} || '%'
+		                            </if>    
+		                        </if>    
+		                    </if>
+				        GROUP BY A.MEMB_ID,
+				                 B.MEMB_NAME,
+				                 B.COM_BUNB,
+				                 B.COM_NAME,
+				                 C.RETURN_DATE
+		          		)
+		 SELECT *
+		   FROM (
+		 SELECT NVL(HH.MEMB_ID,SS.MEMB_ID) AS MEMB_ID
+		       , NVL(HH.MEMB_NAME,SS.MEMB_NAME) AS MEMB_NAME
+		       , NVL(HH.COM_BUNB,SS.COM_BUNB) AS COM_BUNB
+		       , NVL(HH.COM_NAME,SS.COM_NAME) AS COM_NAME
+		       , NVL(HH.DAY1,0)-NVL(SS.DAY1,0) AS DAY1
+		       , NVL(HH.DAY2,0)-NVL(SS.DAY2,0) AS DAY2
+		       , NVL(HH.DAY3,0)-NVL(SS.DAY3,0) AS DAY3
+		       , NVL(HH.DAY4,0)-NVL(SS.DAY4,0) AS DAY4
+		       , NVL(HH.DAY5,0)-NVL(SS.DAY5,0) AS DAY5
+		       , NVL(HH.DAY6,0)-NVL(SS.DAY6,0) AS DAY6
+		       , NVL(HH.DAY7,0)-NVL(SS.DAY7,0) AS DAY7
+		       , NVL(HH.DAY8,0)-NVL(SS.DAY8,0) AS DAY8
+		       , NVL(HH.DAY9,0)-NVL(SS.DAY9,0) AS DAY9
+		       , NVL(HH.DAY10,0)-NVL(SS.DAY10,0) AS DAY10
+		       , NVL(HH.DAY11,0)-NVL(SS.DAY11,0) AS DAY11
+		       , NVL(HH.DAY12,0)-NVL(SS.DAY12,0) AS DAY12
+		       , NVL(HH.DAY13,0)-NVL(SS.DAY13,0) AS DAY13
+		       , NVL(HH.DAY14,0)-NVL(SS.DAY14,0) AS DAY14
+		       , NVL(HH.DAY15,0)-NVL(SS.DAY15,0) AS DAY15
+		       , NVL(HH.DAY16,0)-NVL(SS.DAY16,0) AS DAY16
+		       , NVL(HH.DAY17,0)-NVL(SS.DAY17,0) AS DAY17
+		       , NVL(HH.DAY18,0)-NVL(SS.DAY18,0) AS DAY18
+		       , NVL(HH.DAY19,0)-NVL(SS.DAY19,0) AS DAY19
+		       , NVL(HH.DAY20,0)-NVL(SS.DAY20,0) AS DAY20
+		       , NVL(HH.DAY21,0)-NVL(SS.DAY21,0) AS DAY21
+		       , NVL(HH.DAY22,0)-NVL(SS.DAY22,0) AS DAY22
+		       , NVL(HH.DAY23,0)-NVL(SS.DAY23,0) AS DAY23
+		       , NVL(HH.DAY24,0)-NVL(SS.DAY24,0) AS DAY24
+		       , NVL(HH.DAY25,0)-NVL(SS.DAY25,0) AS DAY25
+		       , NVL(HH.DAY26,0)-NVL(SS.DAY26,0) AS DAY26
+		       , NVL(HH.DAY27,0)-NVL(SS.DAY27,0) AS DAY27
+		       , NVL(HH.DAY28,0)-NVL(SS.DAY28,0) AS DAY28
+		       , NVL(HH.DAY29,0)-NVL(SS.DAY29,0) AS DAY29
+		       , NVL(HH.DAY30,0)-NVL(SS.DAY30,0) AS DAY30
+		       , NVL(HH.DAY31,0)-NVL(SS.DAY31,0) AS DAY31
+		   FROM HH FULL OUTER JOIN SS ON HH.MEMB_ID = SS.MEMB_ID
+		   )
+		 <if test="MEMB_ORD_GUBUN != null and MEMB_ORD_GUBUN != ''">
+				<if test='MEMB_ORD_GUBUN == "DATE_ORDER"'>
+					<if test='DATE_ORDER == "desc"'>
+						ORDER BY ORDER_DATE desc
+					</if>	
+					<if test='DATE_ORDER == "asc"'>
+						ORDER BY ORDER_DATE asc
+					</if>	
+				</if>
+				<if test='MEMB_ORD_GUBUN == "MEMB_NM_ORDER"'>
+					<if test='MEMB_NM_ORDER == "desc"'>
+						ORDER BY MEMB_NAME desc
+					</if>	
+					<if test='MEMB_NM_ORDER == "asc"'>
+						ORDER BY MEMB_NAME asc
+					</if>
+				</if>
+				<if test='MEMB_ORD_GUBUN == "MEMB_ID_ORDER"'>
+					<if test='MEMB_ID_ORDER == "desc"'>
+						ORDER BY MEMB_ID desc
+					</if>	
+					<if test='MEMB_ID_ORDER == "asc"'>
+						ORDER BY MEMB_ID asc
+					</if>
+				</if>
+			</if>
+		 <include refid="default.pagerFooter"/>
+	</select>
+	
+	<select id="dateCnt" parameterType="mall.web.domain.TB_MBINFOXM" resultType="int">
+		SELECT COUNT(DISTINCT A.MEMB_ID)
+           FROM TB_ODINFOXM A INNER JOIN TB_MBINFOXM B ON A.MEMB_ID = B.MEMB_ID
+             FULL OUTER JOIN TB_RTODINFOXM C ON A.MEMB_ID = C.MEMB_ID         
+         WHERE (TO_CHAR(PAY_DTM,'YYYYMMDD') LIKE '%'||#{datepickerStr}||'%'
+           		OR SUBSTR(RETURN_DATE,1,6) LIKE '%'||#{datepickerStr}||'%')
+           AND A.ORDER_CON IN
+	                ('ORDER_CON_02',
+	                 'ORDER_CON_03',
+	                 'ORDER_CON_05',
+	                 'ORDER_CON_06',
+	                 'ORDER_CON_08')
+	       AND PAY_AMT IS NOT NULL
+           <if test="PAY_METD != null and PAY_METD != ''">
+				AND PAY_METD = #{PAY_METD}	
+		   </if>
+		   <if test="schGbn != null and schGbn != ''">
+				<if test='schGbn == "MEMB_NAME"'>
+					<if test="schTxt != null and schTxt != ''">
+					    AND MEMB_NAME LIKE '%' || #{schTxt} || '%'
+					</if>	
+				</if>		
+				<if test='schGbn == "COM_NAME"'>
+					<if test="schTxt != null and schTxt != ''">
+					    AND COM_NAME LIKE '%' || #{schTxt} || '%'
+					</if>	
+				</if>			
+				<if test='schGbn == "COM_BUNB"'>
+					<if test="schTxt != null and schTxt != ''">
+					    AND COM_BUNB LIKE '%' || #{schTxt} || '%'
+					</if>	
+				</if>	
+			</if>
+           AND PAY_AMT IS NOT NULL
+	</select>
+	
+	<select id="dateExcelList" parameterType="mall.web.domain.TB_MBINFOXM" resultType="HashMap">
+		WITH HH AS (
+            SELECT A.MEMB_ID,
+                     B.MEMB_NAME,
+                     B.COM_BUNB,
+                     B.COM_NAME
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 1, PAY_AMT,0)) AS DAY1
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 2, PAY_AMT,0)) AS DAY2
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 3, PAY_AMT,0)) AS DAY3
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 4, PAY_AMT,0)) AS DAY4
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 5, PAY_AMT,0)) AS DAY5
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 6, PAY_AMT,0)) AS DAY6
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 7, PAY_AMT,0)) AS DAY7
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 8, PAY_AMT,0)) AS DAY8
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 9, PAY_AMT,0)) AS DAY9
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 10, PAY_AMT,0)) AS DAY10
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 11, PAY_AMT,0)) AS DAY11
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 12, PAY_AMT,0)) AS DAY12
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 13, PAY_AMT,0)) AS DAY13
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 14, PAY_AMT,0)) AS DAY14
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 15, PAY_AMT,0)) AS DAY15
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 16, PAY_AMT,0)) AS DAY16
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 17, PAY_AMT,0)) AS DAY17
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 18, PAY_AMT,0)) AS DAY18
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 19, PAY_AMT,0)) AS DAY19
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 20, PAY_AMT,0)) AS DAY20
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 21, PAY_AMT,0)) AS DAY21
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 22, PAY_AMT,0)) AS DAY22
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 23, PAY_AMT,0)) AS DAY23
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 24, PAY_AMT,0)) AS DAY24
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 25, PAY_AMT,0)) AS DAY25
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 26, PAY_AMT,0)) AS DAY26
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 27, PAY_AMT,0)) AS DAY27
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 28, PAY_AMT,0)) AS DAY28
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 29, PAY_AMT,0)) AS DAY29
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 30, PAY_AMT,0)) AS DAY30
+                     ,SUM(DECODE(SUBSTR(TO_CHAR(PAY_DTM,'YYYYMMDD'),7,8), 31, PAY_AMT,0)) AS DAY31
+                FROM TB_ODINFOXM A, TB_MBINFOXM B
+               WHERE     A.MEMB_ID = B.MEMB_ID
+                     AND TO_CHAR (PAY_DTM, 'YYYYMMDD') LIKE '%' || #{datepickerStr} || '%'
+                     AND A.ORDER_CON IN
+                            ('ORDER_CON_02',
+                             'ORDER_CON_03',
+                             'ORDER_CON_05',
+                             'ORDER_CON_06',
+                             'ORDER_CON_08')
+                     AND PAY_AMT IS NOT NULL
+                     <if test="PAY_METD != null and PAY_METD != ''">
+                            AND PAY_METD = #{PAY_METD}    
+                       </if>
+                       <if test="schGbn != null and schGbn != ''">
+                            <if test='schGbn == "COM_BUNB"'>
+                                <if test="schTxt != null and schTxt != ''">
+                                    AND COM_BUNB LIKE '%' || #{schTxt} || '%'
+                                </if>    
+                            </if>        
+                            <if test='schGbn == "COM_NAME"'>
+                                <if test="schTxt != null and schTxt != ''">
+                                    AND COM_NAME LIKE '%' || #{schTxt} || '%'
+                                </if>    
+                            </if>            
+                            <if test='schGbn == "MEMB_NAME"'>
+                                <if test="schTxt != null and schTxt != ''">
+                                    AND MEMB_NAME LIKE '%' || #{schTxt} || '%'
+                                </if>    
+                            </if>    
+                        </if>
+			            GROUP BY A.MEMB_ID,
+			                     B.MEMB_NAME,
+			                     B.COM_BUNB,
+			                     B.COM_NAME
+			                     
+			           ),
+			     SS AS (
+			            SELECT A.MEMB_ID,
+			                 B.MEMB_NAME,
+			                 B.COM_BUNB,
+			                 B.COM_NAME
+			                ,C.RETURN_DATE
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 1, RETURN_AMT,0)) AS DAY1
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 2, RETURN_AMT,0)) AS DAY2
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 3, RETURN_AMT,0)) AS DAY3
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 4, RETURN_AMT,0)) AS DAY4
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 5, RETURN_AMT,0)) AS DAY5
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 6, RETURN_AMT,0)) AS DAY6
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 7, RETURN_AMT,0)) AS DAY7
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 8, RETURN_AMT,0)) AS DAY8
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 9, RETURN_AMT,0)) AS DAY9
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 10, RETURN_AMT,0)) AS DAY10
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 11, RETURN_AMT,0)) AS DAY11
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 12, RETURN_AMT,0)) AS DAY12
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 13, RETURN_AMT,0)) AS DAY13
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 14, RETURN_AMT,0)) AS DAY14
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 15, RETURN_AMT,0)) AS DAY15
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 16, RETURN_AMT,0)) AS DAY16
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 17, RETURN_AMT,0)) AS DAY17
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 18, RETURN_AMT,0)) AS DAY18
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 19, RETURN_AMT,0)) AS DAY19
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 20, RETURN_AMT,0)) AS DAY20
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 21, RETURN_AMT,0)) AS DAY21
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 22, RETURN_AMT,0)) AS DAY22
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 23, RETURN_AMT,0)) AS DAY23
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 24, RETURN_AMT,0)) AS DAY24
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 25, RETURN_AMT,0)) AS DAY25
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 26, RETURN_AMT,0)) AS DAY26
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 27, RETURN_AMT,0)) AS DAY27
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 28, RETURN_AMT,0)) AS DAY28
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 29, RETURN_AMT,0)) AS DAY29
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 30, RETURN_AMT,0)) AS DAY30
+			                 ,SUM(DECODE(SUBSTR(RETURN_DATE,7,2), 31, RETURN_AMT,0)) AS DAY31
+			            FROM TB_ODINFOXM A, TB_MBINFOXM B, TB_RTODINFOXM C
+			           WHERE     A.MEMB_ID = B.MEMB_ID
+			                 AND A.ORDER_NUM = C.ORDER_NUM(+)
+			                 AND SUBSTR(RETURN_DATE,1,6) LIKE '%' || #{datepickerStr} || '%'
+			                 AND RETURN_AMT IS NOT NULL
+			                 <if test="schGbn != null and schGbn != ''">
+			                        <if test='schGbn == "COM_BUNB"'>
+			                            <if test="schTxt != null and schTxt != ''">
+			                                AND COM_BUNB LIKE '%' || #{schTxt} || '%'
+			                            </if>    
+			                        </if>        
+			                        <if test='schGbn == "COM_NAME"'>
+			                            <if test="schTxt != null and schTxt != ''">
+			                                AND COM_NAME LIKE '%' || #{schTxt} || '%'
+			                            </if>    
+			                        </if>            
+			                        <if test='schGbn == "MEMB_NAME"'>
+			                            <if test="schTxt != null and schTxt != ''">
+			                                AND MEMB_NAME LIKE '%' || #{schTxt} || '%'
+			                            </if>    
+			                        </if>    
+			                    </if>
+			        GROUP BY A.MEMB_ID,
+			                 B.MEMB_NAME,
+			                 B.COM_BUNB,
+			                 B.COM_NAME,
+			                 C.RETURN_DATE
+			          )
+			 SELECT *
+			   FROM (
+			 SELECT NVL(HH.MEMB_ID,SS.MEMB_ID) AS MEMB_ID
+			       , NVL(HH.MEMB_NAME,SS.MEMB_NAME) AS MEMB_NAME
+			       , NVL(HH.COM_BUNB,SS.COM_BUNB) AS COM_BUNB
+			       , NVL(HH.COM_NAME,SS.COM_NAME) AS COM_NAME
+			       , NVL(HH.DAY1,0)-NVL(SS.DAY1,0) AS DAY1
+			       , NVL(HH.DAY2,0)-NVL(SS.DAY2,0) AS DAY2
+			       , NVL(HH.DAY3,0)-NVL(SS.DAY3,0) AS DAY3
+			       , NVL(HH.DAY4,0)-NVL(SS.DAY4,0) AS DAY4
+			       , NVL(HH.DAY5,0)-NVL(SS.DAY5,0) AS DAY5
+			       , NVL(HH.DAY6,0)-NVL(SS.DAY6,0) AS DAY6
+			       , NVL(HH.DAY7,0)-NVL(SS.DAY7,0) AS DAY7
+			       , NVL(HH.DAY8,0)-NVL(SS.DAY8,0) AS DAY8
+			       , NVL(HH.DAY9,0)-NVL(SS.DAY9,0) AS DAY9
+			       , NVL(HH.DAY10,0)-NVL(SS.DAY10,0) AS DAY10
+			       , NVL(HH.DAY11,0)-NVL(SS.DAY11,0) AS DAY11
+			       , NVL(HH.DAY12,0)-NVL(SS.DAY12,0) AS DAY12
+			       , NVL(HH.DAY13,0)-NVL(SS.DAY13,0) AS DAY13
+			       , NVL(HH.DAY14,0)-NVL(SS.DAY14,0) AS DAY14
+			       , NVL(HH.DAY15,0)-NVL(SS.DAY15,0) AS DAY15
+			       , NVL(HH.DAY16,0)-NVL(SS.DAY16,0) AS DAY16
+			       , NVL(HH.DAY17,0)-NVL(SS.DAY17,0) AS DAY17
+			       , NVL(HH.DAY18,0)-NVL(SS.DAY18,0) AS DAY18
+			       , NVL(HH.DAY19,0)-NVL(SS.DAY19,0) AS DAY19
+			       , NVL(HH.DAY20,0)-NVL(SS.DAY20,0) AS DAY20
+			       , NVL(HH.DAY21,0)-NVL(SS.DAY21,0) AS DAY21
+			       , NVL(HH.DAY22,0)-NVL(SS.DAY22,0) AS DAY22
+			       , NVL(HH.DAY23,0)-NVL(SS.DAY23,0) AS DAY23
+			       , NVL(HH.DAY24,0)-NVL(SS.DAY24,0) AS DAY24
+			       , NVL(HH.DAY25,0)-NVL(SS.DAY25,0) AS DAY25
+			       , NVL(HH.DAY26,0)-NVL(SS.DAY26,0) AS DAY26
+			       , NVL(HH.DAY27,0)-NVL(SS.DAY27,0) AS DAY27
+			       , NVL(HH.DAY28,0)-NVL(SS.DAY28,0) AS DAY28
+			       , NVL(HH.DAY29,0)-NVL(SS.DAY29,0) AS DAY29
+			       , NVL(HH.DAY30,0)-NVL(SS.DAY30,0) AS DAY30
+			       , NVL(HH.DAY31,0)-NVL(SS.DAY31,0) AS DAY31
+			   FROM HH FULL OUTER JOIN SS ON HH.MEMB_ID = SS.MEMB_ID
+			   )
+	</select>
+	
+	
+</mapper>

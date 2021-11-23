@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="mall.web.mapper.admin.SupplierMgrMapper">
+	<sql id="searchCondition">
+		<where>	
+			<if test="SCSS_YN != null and SCSS_YN != ''">
+			    AND SCSS_YN = #{SCSS_YN}
+			</if>
+			<if test="schGbn != null and schGbn != ''">
+				<if test='schGbn == "SUPR_NAME"'>
+					<if test="schTxt != null and schTxt != ''">
+					    AND SUPR_NAME LIKE '%' || #{schTxt} || '%'
+					</if>	
+				</if>		
+				<if test='schGbn == "RPRS_NAME"'>
+					<if test="schTxt != null and schTxt != ''">
+					    AND RPRS_NAME LIKE '%' || #{schTxt} || '%'
+					</if>	
+				</if>			
+			</if>
+		</where>  
+	</sql>
+
+	<select id="count" parameterType="mall.web.domain.TB_SPINFOXM" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			TB_SPINFOXM
+		<include refid="searchCondition"/>
+	</select>
+	
+	<select id="paginatedList" parameterType="mall.web.domain.TB_SPINFOXM" resultType="mall.web.domain.TB_SPINFOXM">
+		<include refid="default.pagerHeader"/>	
+			SELECT
+				SUPR_ID
+				, BIZR_NUM
+				, RPRS_NAME
+				, SUPR_NAME
+				, TEL_NUM
+				, FAX_NUM
+				, RPR_MAIL
+				, POST_NUM
+				, BASC_ADDR
+				, DTL_ADDR
+				, DLVY_AMT
+				, DLVA_FCON
+				, PS_COM
+				, APR_PROD
+				, APD_PROD
+				, SBK_PROD
+				, SVMN_USCON
+				, DLVREF_CONT
+				, REGP_ID
+				, REG_DTM
+				, MODP_ID
+				, MOD_DTM
+			FROM
+				TB_SPINFOXM
+			<include refid="searchCondition"/>
+		<include refid="default.pagerFooter"/>
+	</select>
+	
+	<select id="list" parameterType="mall.web.domain.TB_SPINFOXM" resultType="mall.web.domain.TB_SPINFOXM">
+			SELECT 
+				SUPR_ID
+				, BIZR_NUM
+				, RPRS_NAME
+				, SUPR_NAME
+				, TEL_NUM
+				, FAX_NUM
+				, RPR_MAIL
+				, POST_NUM
+				, BASC_ADDR
+				, DTL_ADDR
+				, DLVY_AMT
+				, DLVA_FCON
+				, PS_COM
+				, APR_PROD
+				, APD_PROD
+				, SBK_PROD
+				, SVMN_USCON
+				, DLVREF_CONT
+				, REGP_ID
+				, REG_DTM
+				, MODP_ID
+				, MOD_DTM
+			FROM
+				TB_SPINFOXM
+			WHERE SCSS_YN = 'N' AND ROWID IN(SELECT MAX(ROWID) FROM TB_SPINFOXM GROUP BY SUPR_NAME)
+			ORDER BY REG_DTM DESC
+			<include refid="searchCondition"/>
+	</select>
+	
+	<select id="find" parameterType="mall.web.domain.TB_SPINFOXM" resultType="mall.web.domain.TB_SPINFOXM">
+		SELECT
+			SUPR_ID
+			, BIZR_NUM
+			, RPRS_NAME
+			, SUPR_NAME
+			, TEL_NUM
+			, FAX_NUM
+			, RPR_MAIL
+			, POST_NUM
+			, BASC_ADDR
+			, DTL_ADDR
+			, DLVY_AMT
+			, DLVA_FCON
+			, PS_COM
+			, APR_PROD
+			, APD_PROD
+			, SBK_PROD
+			, SVMN_USCON
+			, DLVREF_CONT
+			, REGP_ID
+			, REG_DTM
+			, MODP_ID
+			, MOD_DTM
+		FROM
+			TB_SPINFOXM
+		WHERE
+			SUPR_ID = #{SUPR_ID}
+	</select>
+	
+	<insert id="insert" parameterType="mall.web.domain.TB_SPINFOXM">
+		INSERT INTO 
+			TB_SPINFOXM (
+				SUPR_ID
+				, BIZR_NUM
+				, RPRS_NAME
+				, SUPR_NAME
+				, TEL_NUM
+				, FAX_NUM
+				, RPR_MAIL
+				, POST_NUM
+				, BASC_ADDR
+				, DTL_ADDR
+				, DLVY_AMT
+				, DLVA_FCON
+				, PS_COM
+				, APR_PROD
+				, APD_PROD
+				, SBK_PROD
+				, SVMN_USCON
+				, DLVREF_CONT
+				, SCSS_YN
+				, REGP_ID
+				, REG_DTM
+				, MODP_ID
+				, MOD_DTM
+			) VALUES (
+				(SELECT 'C' || LPAD(NVL(MAX(SUBSTR(SUPR_ID,2)),0) + 1, 5, 0) FROM TB_SPINFOXM)
+				, #{BIZR_NUM}
+				, #{RPRS_NAME}
+				, #{SUPR_NAME}
+				, #{TEL_NUM}
+				, #{FAX_NUM}
+				, #{RPR_MAIL}
+				, #{POST_NUM}
+				, #{BASC_ADDR}
+				, #{DTL_ADDR}
+				, #{DLVY_AMT}
+				, #{DLVA_FCON}
+				, #{PS_COM}
+				, #{APR_PROD}
+				, #{APD_PROD}
+				, #{SBK_PROD}
+				, #{SVMN_USCON}
+				, #{DLVREF_CONT}
+				, 'N'
+				, #{REGP_ID}
+				, SYSDATE
+				, #{REGP_ID}
+				, SYSDATE
+			)
+	</insert>
+	
+	<update id="update" parameterType="mall.web.domain.TB_SPINFOXM">
+		UPDATE 
+			TB_SPINFOXM
+		SET
+			BIZR_NUM		=   #{BIZR_NUM}
+			, RPRS_NAME 	=   #{RPRS_NAME}
+			, SUPR_NAME 	=   #{SUPR_NAME}
+			, TEL_NUM 		=   #{TEL_NUM}
+			, FAX_NUM 		=   #{FAX_NUM}
+			, RPR_MAIL 		=   #{RPR_MAIL}
+			, POST_NUM 		=   #{POST_NUM}
+			, BASC_ADDR 	=   #{BASC_ADDR}
+			, DTL_ADDR 		=   #{DTL_ADDR}
+			, DLVY_AMT 		=   #{DLVY_AMT}
+			, DLVA_FCON 	=   #{DLVA_FCON}
+			, PS_COM 		=   #{PS_COM}
+			, APR_PROD 		=   #{APR_PROD}
+			, APD_PROD 		=   #{APD_PROD}
+			, SBK_PROD 		=   #{SBK_PROD}
+			, SVMN_USCON 	=   #{SVMN_USCON}
+			, DLVREF_CONT 	=   #{DLVREF_CONT}
+			, MODP_ID 		=   #{REGP_ID}
+			, MOD_DTM 		=   SYSDATE
+		WHERE
+			SUPR_ID =   #{SUPR_ID}
+	</update>
+	
+	<update id="delete" parameterType="mall.web.domain.TB_SPINFOXM">
+		UPDATE 
+			TB_SPINFOXM
+		SET
+			SCSS_YN = 'Y'
+			, MODP_ID = #{REGP_ID}
+			, MOD_DTM = SYSDATE
+		WHERE
+			SUPR_ID = #{SUPR_ID}
+	</update>
+
+</mapper>

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="mall.web.mapper.mall.BasketMapper">
+	
+	<select id="list" parameterType="mall.web.domain.TB_BKINFOXM" resultType="mall.web.domain.TB_BKINFOXM">
+		SELECT A.BSKT_REGNO /*장바구니 등록번호*/
+		     , A.PD_CODE     /*제품코드*/
+		     , B.PD_NAME     /*제품명*/
+		     , A.PD_QTY
+		     <!-- , A.PD_PRICE - A.PDDC_VAL AS PD_PRICE /*제품가격*/ -->
+		     , CASE WHEN B.PDDC_GUBN = 'PDDC_GUBN_02' THEN B.PD_PRICE - B.PDDC_VAL
+	                WHEN B.PDDC_GUBN = 'PDDC_GUBN_03' THEN B.PD_PRICE - (B.PD_PRICE* B.PDDC_VAL/100)
+	                ELSE B.PD_PRICE
+	               END REAL_PRICE			/*실제 제품값*/
+		     , A.MEMB_ID     				/*회워ID*/
+		     , B.ATFL_ID     				/*파일ID*/
+		     , B.RPIMG_SEQ   				/*대표이미지 순번*/
+		     , B.QNT_LIMT_USE 				/*수량개수 사용제한*/
+		     , B.SALE_CON					/*판매상태*/
+		     , DECODE(B.QNT_LIMT_USE,'Y'
+		     			,(SELECT COMD_CODE FROM TB_COMCODXD WHERE COMDCD_NAME = A.PD_QTY AND COMM_CODE = 'QNT_LIMT')
+		     			,A.PD_QTY) LIMT_PD_QTY      /*제품 수량*/
+		     , (SELECT CUT_UNIT FROM TB_PDCUTXM WHERE PD_CODE = A.PD_CODE AND SEQ = A.PD_CUT_SEQ ) PD_CUT_SEQ
+		     , NVL ( (SELECT COMDCD_NAME FROM TB_COMCODXD WHERE COMM_CODE = 'OPTION_GUBN' AND COMD_CODE = A.OPTION_CODE ),
+                        (SELECT OPTDCD_NAME FROM TB_OPTCODXD WHERE OPTD_CODE = A.OPTION_CODE) ) AS OPTION_CODE
+             , (SELECT FILEPATH_FLAG FROM TB_COATFLXD WHERE ATFL_ID = B.ATFL_ID AND ATFL_SEQ = B.RPIMG_SEQ) AS FILEPATH_FLAG           
+		  FROM TB_BKINFOXM A				/*장바구니*/
+		 INNER JOIN TB_PDINFOXM B 			/*상품정보*/
+		    ON A.PD_CODE = B.PD_CODE
+		   AND A.MEMB_ID = #{REGP_ID}
+	</select>
+		
+	<insert id="insert" parameterType="mall.web.domain.TB_BKINFOXM">
+		INSERT INTO TB_IPINFOXM /*관심상품*/
+			  (INTPD_REGNO,
+			   PD_CODE,
+			   INTPD_REGDT,
+			   MEMB_ID,
+			   PD_NAME,
+			   PD_QTY,
+			   PD_PRICE,
+			   PDDC_GUBN,
+			   PDDC_VAL,
+			   OCCUR_SVMN,
+			   REGP_ID,
+			   REG_DTM,
+			   MODP_ID,
+			   MOD_DTM,
+			   PD_CUT_SEQ,
+			   OPTION_CODE)
+			SELECT 
+			  ((SELECT NVL(MAX(TO_NUMBER(INTPD_REGNO))+1,1) FROM TB_IPINFOXM)),
+			   PD_CODE,
+			   SYSDATE,
+			   MEMB_ID,
+			   PD_NAME,
+			   PD_QTY,
+			   PD_PRICE,
+			   PDDC_GUBN,
+			   PDDC_VAL,
+			   OCCUR_SVMN,
+			   REGP_ID,
+			   REG_DTM,
+			   MODP_ID,
+			   MOD_DTM,
+			   PD_CUT_SEQ,
+			   OPTION_CODE
+			 FROM TB_BKINFOXM /*장바구니*/
+			WHERE BSKT_REGNO = #{BSKT_REGNO}
+	</insert>	
+		
+	<delete id="delete" parameterType="mall.web.domain.TB_BKINFOXM">
+		DELETE 
+		  FROM TB_BKINFOXM /*장바구니*/
+		 WHERE BSKT_REGNO = #{BSKT_REGNO}
+	</delete>
+	
+	<update id="update" parameterType="mall.web.domain.TB_BKINFOXM">
+		UPDATE TB_BKINFOXM /*장바구니*/
+		   SET PD_QTY = ${PD_QTY}
+		 WHERE BSKT_REGNO = #{BSKT_REGNO}
+	</update>
+	
+</mapper>

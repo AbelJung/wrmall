@@ -1,0 +1,493 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="mall.web.mapper.admin.MemberSalCntMgrMapper">
+	<sql id="searchCondition">
+		<where>	
+			<if test="MEMB_NAME != null and MEMB_NAME != ''">
+			    (MEMB_NAME = #{MEMB_NAME} OR MEMB_NAME2 LIKE '%' || #{MEMB_NAME} || '%')
+			</if>	
+			<!-- <if test="MEMB_GUBN != null and MEMB_GUBN != ''">
+			    AND MEMB_GUBN = #{MEMB_GUBN}
+			</if>	 -->
+			<if test="schGbn != null and schGbn != ''">
+				<if test='schGbn == "SUPR_NAME"'>
+					<if test="schTxt != null and schTxt != ''">
+					    AND (SUPR_NAME LIKE '%' || #{schTxt} || '%' OR MEMB_NAME2 LIKE '%' || #{schTxt} || '%')
+					</if>	
+				</if>		
+				<if test='schGbn == "MEMB_ID"'>
+					<if test="schTxt != null and schTxt != ''">
+					    AND (MEMB_ID LIKE '%' || #{schTxt} || '%' OR MEMB_NAME2 LIKE '%' || #{schTxt} || '%')
+					</if>	
+				</if>			
+				<if test='schGbn == "MEMB_NAME"'>
+					<if test="schTxt != null and schTxt != ''">
+					    AND (MEMB_NAME LIKE '%' || #{schTxt} || '%' OR MEMB_NAME2 LIKE '%' || #{schTxt} || '%')
+					</if>	
+				</if>
+				<if test='schGbn == "COM_NAME"'>
+					<if test="schTxt != null and schTxt != ''">
+					    AND (COM_NAME LIKE '%' || #{schTxt} || '%' OR MEMB_NAME2 LIKE '%' || #{schTxt} || '%')
+					</if>	
+				</if>		
+			</if>
+			<if test="PAY_GUBN != null and PAY_GUBN != ''">
+				<if test='PAY_GUBN == "PAY_METD_01"'>
+					AND ( PAY_METD_01_TAX_GUBN_01_SUM IS NOT NULL OR PAY_METD_01_TAX_GUBN_02_SUM IS NOT NULL )					
+				</if>		
+				<if test='PAY_GUBN == "SC0040"'>
+					AND ( PAY_METD_02_TAX_GUBN_01_SUM IS NOT NULL OR PAY_METD_02_TAX_GUBN_02_SUM IS NOT NULL )
+				</if>	
+			</if>
+		</where>  
+	</sql>
+
+	<select id="count" parameterType="mall.web.domain.TB_MBINFOXM" resultType="int">
+				WITH HH AS (
+                SELECT A.MEMB_ID,
+                       FC_GET_COMCOD_NM (A.MEMB_GUBN) MEMB_GUBN_NM,
+                       A.MEMB_NAME,
+                       A.MEMB_MAIL,
+                       A.COM_NAME,
+                       A.COM_BUNB,
+                       A.COM_BADR,
+                       A.COM_DADR,
+                       A.REG_DTM
+	                 , (SELECT SUM (DLVY_AMT)
+	                      FROM TB_ODINFOXM
+	                     WHERE     MEMB_ID = A.MEMB_ID
+	                           AND ORDER_CON IN
+	                                  ('ORDER_CON_02',
+	                                   'ORDER_CON_03',
+	                                   'ORDER_CON_05',
+	                                   'ORDER_CON_06',
+	                                   'ORDER_CON_08')
+	                         <if test="datepickerStr != null and datepickerStr != ''">
+								 AND PAY_DTM BETWEEN TRUNC(TO_DATE(#{datepickerStr},'YYYY-MM')) AND ADD_MONTHS(TO_DATE (#{datepickerStr},'YYYY-MM'),1)
+							 </if>)
+	                      AS DLVY_AMT_SUM,
+	                   SUM (C.ORDER_AMT) AS ORDER_AMT_SUM_BEFORE,
+	                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_01', C.ORDER_AMT, 0)) AS TAX_GUBN_01_SUM,
+	                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_02', C.ORDER_AMT, 0)) AS TAX_GUBN_02_SUM,
+	                   <if test="PAY_GUBN != null and PAY_GUBN != ''">
+							<if test='PAY_GUBN == "PAY_METD_01"'>
+								SUM(DECODE (B.PAY_METD, 'PAY_METD_01', DECODE(D.TAX_GUBN, 'TAX_GUBN_01', C.ORDER_AMT))) AS PAY_METD_01_TAX_GUBN_01_SUM,  
+					         	SUM(DECODE (B.PAY_METD, 'PAY_METD_01', DECODE(D.TAX_GUBN, 'TAX_GUBN_02', C.ORDER_AMT))) AS PAY_METD_01_TAX_GUBN_02_SUM, 
+					         	0 AS PAY_METD_02_TAX_GUBN_01_SUM,
+         					 	0 AS PAY_METD_02_TAX_GUBN_02_SUM					
+							</if>		
+							<if test='PAY_GUBN == "SC0040"'>
+								0 AS PAY_METD_01_TAX_GUBN_01_SUM,  
+					         	0 AS PAY_METD_01_TAX_GUBN_02_SUM, 
+					         	SUM(CASE WHEN B.PAY_METD !='PAY_METD_01' THEN DECODE(D.TAX_GUBN, 'TAX_GUBN_01', C.ORDER_AMT) END) AS PAY_METD_02_TAX_GUBN_01_SUM,
+        					 	SUM(CASE WHEN B.PAY_METD !='PAY_METD_01' THEN DECODE(D.TAX_GUBN, 'TAX_GUBN_02', C.ORDER_AMT) END) AS PAY_METD_02_TAX_GUBN_02_SUM
+							</if>	
+						</if>
+						<if test="PAY_GUBN == null or PAY_GUBN == ''">
+							SUM(DECODE (B.PAY_METD, 'PAY_METD_01', DECODE(D.TAX_GUBN, 'TAX_GUBN_01', C.ORDER_AMT))) AS PAY_METD_01_TAX_GUBN_01_SUM,  
+				         	SUM(DECODE (B.PAY_METD, 'PAY_METD_01', DECODE(D.TAX_GUBN, 'TAX_GUBN_02', C.ORDER_AMT))) AS PAY_METD_01_TAX_GUBN_02_SUM, 
+				         	SUM(CASE WHEN B.PAY_METD !='PAY_METD_01' THEN DECODE(D.TAX_GUBN, 'TAX_GUBN_01', C.ORDER_AMT) END) AS PAY_METD_02_TAX_GUBN_01_SUM,
+        					 	SUM(CASE WHEN B.PAY_METD !='PAY_METD_01' THEN DECODE(D.TAX_GUBN, 'TAX_GUBN_02', C.ORDER_AMT) END) AS PAY_METD_02_TAX_GUBN_02_SUM
+						</if>
+	              FROM TB_MBINFOXM A, TB_ODINFOXM B, TB_ODINFOXD C, TB_PDINFOXM D
+	             WHERE A.MEMB_ID = B.MEMB_ID
+	               AND B.ORDER_NUM = C.ORDER_NUM
+	               AND C.PD_CODE = D.PD_CODE
+	               AND B.ORDER_CON IN
+	                          ('ORDER_CON_02',
+	                           'ORDER_CON_03',
+	                           'ORDER_CON_05',
+	                           'ORDER_CON_06',
+	                           'ORDER_CON_08')
+	                   AND B.PAY_AMT IS NOT NULL
+                    <if test="datepickerStr != null and datepickerStr != ''">
+						 AND PAY_DTM BETWEEN TRUNC(TO_DATE(#{datepickerStr},'YYYY-MM')) AND ADD_MONTHS(TO_DATE (#{datepickerStr},'YYYY-MM'),1)
+					 </if>
+	              GROUP BY A.MEMB_ID,
+	                       A.MEMB_GUBN,
+	                       A.MEMB_NAME,
+	                       A.MEMB_MAIL,
+	                       A.COM_NAME,
+	                       A.COM_BUNB,
+	                       A.COM_BADR,
+	                       A.COM_DADR,
+	                       A.REG_DTM
+	            ),
+	       SS AS (
+	                SELECT A.MEMB_ID,
+	                       FC_GET_COMCOD_NM (A.MEMB_GUBN) MEMB_GUBN_NM,
+	                       A.MEMB_NAME,
+	                       A.MEMB_MAIL,
+	                       A.COM_NAME,
+	                       A.COM_BUNB,
+	                       A.COM_BADR,
+	                       A.COM_DADR,
+	                       A.REG_DTM
+	                 , (SELECT SUM (DLVY_AMT)
+	                      FROM TB_RTODINFOXM
+	                     WHERE MEMB_ID = A.MEMB_ID)
+	                      AS DLVY_AMT_SUM,
+	                   SUM (C.RETURN_AMT) AS ORDER_AMT_SUM_BEFORE,
+	                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_01', C.RETURN_AMT, 0)) AS TAX_GUBN_01_SUM,
+	                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_02', C.RETURN_AMT, 0)) AS TAX_GUBN_02_SUM
+	              FROM TB_MBINFOXM A, TB_RTODINFOXM B, TB_RTODINFOXD C, TB_PDINFOXM D
+	             WHERE A.MEMB_ID = B.MEMB_ID
+	               AND B.RETURN_NUM = C.RETURN_NUM
+	               AND C.PD_CODE = D.PD_CODE
+	               AND B.RETURN_AMT IS NOT NULL
+                    <if test="datepickerStr != null and datepickerStr != ''">
+						 AND TO_DATE(B.RETURN_DATE,'YYYYMMDDHH24MISS') BETWEEN TRUNC(TO_DATE(#{datepickerStr},'YYYY-MM')) AND ADD_MONTHS(TO_DATE (#{datepickerStr},'YYYY-MM'),1)
+					 </if>
+	              GROUP BY A.MEMB_ID,
+	                       A.MEMB_GUBN,
+	                       A.MEMB_NAME,
+	                       A.MEMB_MAIL,
+	                       A.COM_NAME,
+	                       A.COM_BUNB,
+	                       A.COM_BADR,
+	                       A.COM_DADR,
+	                       A.REG_DTM
+	           )
+	SELECT COUNT(*)
+	  FROM (  SELECT NVL (HH.MEMB_ID, SS.MEMB_ID) AS MEMB_ID,
+                     NVL (HH.MEMB_GUBN_NM, SS.MEMB_GUBN_NM)
+                        AS MEMB_GUBN_NM,
+                     <!-- NVL (HH.MEMB_NAME, SS.MEMB_NAME) AS MEMB_NAME, -->
+                     HH.MEMB_NAME AS MEMB_NAME,
+                     SS.MEMB_NAME AS MEMB_NAME2,
+                     NVL (HH.MEMB_MAIL, SS.MEMB_MAIL) AS MEMB_MAIL,
+                     NVL (HH.COM_NAME, SS.COM_NAME) AS COM_NAME,
+                     NVL (HH.COM_BUNB, SS.COM_BUNB) AS COM_BUNB,
+                     NVL (HH.COM_BADR, SS.COM_BADR) AS COM_BADR,
+                     NVL (HH.COM_DADR, SS.COM_DADR) AS COM_DADR,
+                     NVL (HH.REG_DTM, SS.REG_DTM) AS REG_DTM,
+                     HH.PAY_METD_01_TAX_GUBN_01_SUM,
+		             HH.PAY_METD_01_TAX_GUBN_02_SUM,
+		             HH.PAY_METD_02_TAX_GUBN_01_SUM,
+		             HH.PAY_METD_02_TAX_GUBN_02_SUM,
+                     HH.DLVY_AMT_SUM AS DLVY_AMT_SUM,
+                     HH.ORDER_AMT_SUM_BEFORE AS ORDER_AMT_SUM_BEFORE,
+                     HH.TAX_GUBN_01_SUM AS TAX_GUBN_01_SUM,
+                     HH.TAX_GUBN_02_SUM AS TAX_GUBN_02_SUM,
+                     HH.ORDER_AMT_SUM_BEFORE + HH.DLVY_AMT_SUM
+                        AS ORDER_AMT_SUM,
+                     SS.DLVY_AMT_SUM AS DLVY_AMT_SUM_RT,
+                     SS.ORDER_AMT_SUM_BEFORE
+                        AS ORDER_AMT_SUM_BEFORE_RT,
+                     SS.TAX_GUBN_01_SUM AS TAX_GUBN_01_SUM_RT,
+                     SS.TAX_GUBN_02_SUM AS TAX_GUBN_02_SUM_RT,
+                     NVL2(SS.ORDER_AMT_SUM_BEFORE, ((NVL(HH.ORDER_AMT_SUM_BEFORE,0) + NVL(HH.DLVY_AMT_SUM,0)) - SS.ORDER_AMT_SUM_BEFORE),(NVL(HH.ORDER_AMT_SUM_BEFORE,0) + NVL(HH.DLVY_AMT_SUM,0))) AS AMT_TOTAL
+              FROM HH FULL OUTER JOIN SS ON HH.MEMB_ID = SS.MEMB_ID
+	       )
+		<include refid="searchCondition"/>
+	</select>
+	
+	<select id="paginatedList" parameterType="mall.web.domain.TB_MBINFOXM" resultType="mall.web.domain.TB_MBINFOXM">
+		<include refid="default.pagerHeader"/>	
+			WITH HH AS (
+                SELECT A.MEMB_ID,
+                       FC_GET_COMCOD_NM (A.MEMB_GUBN) MEMB_GUBN_NM,
+                       A.MEMB_NAME,
+                       A.MEMB_MAIL,
+                       A.COM_NAME,
+                       A.COM_BUNB,
+                       A.COM_BADR,
+                       A.COM_DADR,
+                       A.REG_DTM
+	                 , (SELECT SUM (DLVY_AMT)
+	                      FROM TB_ODINFOXM
+	                     WHERE     MEMB_ID = A.MEMB_ID
+	                           AND ORDER_CON IN
+	                                  ('ORDER_CON_02',
+	                                   'ORDER_CON_03',
+	                                   'ORDER_CON_05',
+	                                   'ORDER_CON_06',
+	                                   'ORDER_CON_08')
+	                         <if test="datepickerStr != null and datepickerStr != ''">
+								 AND PAY_DTM BETWEEN TRUNC(TO_DATE(#{datepickerStr},'YYYY-MM')) AND ADD_MONTHS(TO_DATE (#{datepickerStr},'YYYY-MM'),1)
+							 </if>)
+	                      AS DLVY_AMT_SUM,
+	                   SUM (C.ORDER_AMT) AS ORDER_AMT_SUM_BEFORE,
+	                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_01', C.ORDER_AMT, 0)) AS TAX_GUBN_01_SUM,
+	                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_02', C.ORDER_AMT, 0)) AS TAX_GUBN_02_SUM,
+	                   <if test="PAY_GUBN != null and PAY_GUBN != ''">
+							<if test='PAY_GUBN == "PAY_METD_01"'>
+								SUM(DECODE (B.PAY_METD, 'PAY_METD_01', DECODE(D.TAX_GUBN, 'TAX_GUBN_01', C.ORDER_AMT))) AS PAY_METD_01_TAX_GUBN_01_SUM,  
+					         	SUM(DECODE (B.PAY_METD, 'PAY_METD_01', DECODE(D.TAX_GUBN, 'TAX_GUBN_02', C.ORDER_AMT))) AS PAY_METD_01_TAX_GUBN_02_SUM, 
+					         	0 AS PAY_METD_02_TAX_GUBN_01_SUM,
+         					 	0 AS PAY_METD_02_TAX_GUBN_02_SUM					
+							</if>		
+							<if test='PAY_GUBN == "SC0040"'>
+								0 AS PAY_METD_01_TAX_GUBN_01_SUM,  
+					         	0 AS PAY_METD_01_TAX_GUBN_02_SUM, 
+					         	SUM(CASE WHEN B.PAY_METD !='PAY_METD_01' THEN DECODE(D.TAX_GUBN, 'TAX_GUBN_01', C.ORDER_AMT) END) AS PAY_METD_02_TAX_GUBN_01_SUM,
+        					 	SUM(CASE WHEN B.PAY_METD !='PAY_METD_01' THEN DECODE(D.TAX_GUBN, 'TAX_GUBN_02', C.ORDER_AMT) END) AS PAY_METD_02_TAX_GUBN_02_SUM
+							</if>	
+						</if>
+						<if test="PAY_GUBN == null or PAY_GUBN == ''">
+							SUM(DECODE (B.PAY_METD, 'PAY_METD_01', DECODE(D.TAX_GUBN, 'TAX_GUBN_01', C.ORDER_AMT))) AS PAY_METD_01_TAX_GUBN_01_SUM,  
+				         	SUM(DECODE (B.PAY_METD, 'PAY_METD_01', DECODE(D.TAX_GUBN, 'TAX_GUBN_02', C.ORDER_AMT))) AS PAY_METD_01_TAX_GUBN_02_SUM, 
+				         	SUM(CASE WHEN B.PAY_METD !='PAY_METD_01' THEN DECODE(D.TAX_GUBN, 'TAX_GUBN_01', C.ORDER_AMT) END) AS PAY_METD_02_TAX_GUBN_01_SUM,
+        					 	SUM(CASE WHEN B.PAY_METD !='PAY_METD_01' THEN DECODE(D.TAX_GUBN, 'TAX_GUBN_02', C.ORDER_AMT) END) AS PAY_METD_02_TAX_GUBN_02_SUM
+						</if>
+	              FROM TB_MBINFOXM A, TB_ODINFOXM B, TB_ODINFOXD C, TB_PDINFOXM D
+	             WHERE A.MEMB_ID = B.MEMB_ID
+	               AND B.ORDER_NUM = C.ORDER_NUM
+	               AND C.PD_CODE = D.PD_CODE
+	               AND B.ORDER_CON IN
+	                          ('ORDER_CON_02',
+	                           'ORDER_CON_03',
+	                           'ORDER_CON_05',
+	                           'ORDER_CON_06',
+	                           'ORDER_CON_08')
+	                   AND B.PAY_AMT IS NOT NULL
+                    <if test="datepickerStr != null and datepickerStr != ''">
+						 AND PAY_DTM BETWEEN TRUNC(TO_DATE(#{datepickerStr},'YYYY-MM')) AND ADD_MONTHS(TO_DATE (#{datepickerStr},'YYYY-MM'),1)
+					 </if>
+	              GROUP BY A.MEMB_ID,
+	                       A.MEMB_GUBN,
+	                       A.MEMB_NAME,
+	                       A.MEMB_MAIL,
+	                       A.COM_NAME,
+	                       A.COM_BUNB,
+	                       A.COM_BADR,
+	                       A.COM_DADR,
+	                       A.REG_DTM
+	            ),
+	       SS AS (
+	                SELECT A.MEMB_ID,
+	                       FC_GET_COMCOD_NM (A.MEMB_GUBN) MEMB_GUBN_NM,
+	                       A.MEMB_NAME,
+	                       A.MEMB_MAIL,
+	                       A.COM_NAME,
+	                       A.COM_BUNB,
+	                       A.COM_BADR,
+	                       A.COM_DADR,
+	                       A.REG_DTM
+	                 , (SELECT SUM (DLVY_AMT)
+	                      FROM TB_RTODINFOXM
+	                     WHERE MEMB_ID = A.MEMB_ID)
+	                      AS DLVY_AMT_SUM,
+	                   SUM (C.RETURN_AMT) AS ORDER_AMT_SUM_BEFORE,
+	                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_01', C.RETURN_AMT, 0)) AS TAX_GUBN_01_SUM,
+	                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_02', C.RETURN_AMT, 0)) AS TAX_GUBN_02_SUM
+	              FROM TB_MBINFOXM A, TB_RTODINFOXM B, TB_RTODINFOXD C, TB_PDINFOXM D
+	             WHERE A.MEMB_ID = B.MEMB_ID
+	               AND B.RETURN_NUM = C.RETURN_NUM
+	               AND C.PD_CODE = D.PD_CODE
+	               AND B.RETURN_AMT IS NOT NULL
+	               <if test="datepickerStr != null and datepickerStr != ''">
+						 AND TO_DATE(B.RETURN_DATE,'YYYYMMDDHH24MISS') BETWEEN TRUNC(TO_DATE(#{datepickerStr},'YYYY-MM')) AND ADD_MONTHS(TO_DATE (#{datepickerStr},'YYYY-MM'),1)
+					 </if>
+	              GROUP BY A.MEMB_ID,
+	                       A.MEMB_GUBN,
+	                       A.MEMB_NAME,
+	                       A.MEMB_MAIL,
+	                       A.COM_NAME,
+	                       A.COM_BUNB,
+	                       A.COM_BADR,
+	                       A.COM_DADR,
+	                       A.REG_DTM
+	           )
+	
+ 	  SELECT *
+		FROM (  SELECT NVL (HH.MEMB_ID, SS.MEMB_ID) AS MEMB_ID,
+                       NVL (HH.MEMB_GUBN_NM, SS.MEMB_GUBN_NM)
+                          AS MEMB_GUBN_NM,
+                       <!-- NVL (HH.MEMB_NAME, SS.MEMB_NAME) AS MEMB_NAME, -->
+                       HH.MEMB_NAME AS MEMB_NAME,
+                       SS.MEMB_NAME AS MEMB_NAME2,
+                       NVL (HH.MEMB_MAIL, SS.MEMB_MAIL) AS MEMB_MAIL,
+                       NVL (HH.COM_NAME, SS.COM_NAME) AS COM_NAME,
+                       NVL (HH.COM_BUNB, SS.COM_BUNB) AS COM_BUNB,
+                       NVL (HH.COM_BADR, SS.COM_BADR) AS COM_BADR,
+                       NVL (HH.COM_DADR, SS.COM_DADR) AS COM_DADR,
+                       NVL (HH.REG_DTM, SS.REG_DTM) AS REG_DTM,
+                       HH.PAY_METD_01_TAX_GUBN_01_SUM,
+		               HH.PAY_METD_01_TAX_GUBN_02_SUM,
+		               HH.PAY_METD_02_TAX_GUBN_01_SUM,
+		               HH.PAY_METD_02_TAX_GUBN_02_SUM,
+                       HH.DLVY_AMT_SUM AS DLVY_AMT_SUM,
+                       HH.ORDER_AMT_SUM_BEFORE AS ORDER_AMT_SUM_BEFORE,
+                       HH.TAX_GUBN_01_SUM AS TAX_GUBN_01_SUM,
+                       HH.TAX_GUBN_02_SUM AS TAX_GUBN_02_SUM,
+                       HH.ORDER_AMT_SUM_BEFORE + HH.DLVY_AMT_SUM
+                          AS ORDER_AMT_SUM,
+                       SS.DLVY_AMT_SUM AS DLVY_AMT_SUM_RT,
+                       SS.ORDER_AMT_SUM_BEFORE
+                          AS ORDER_AMT_SUM_BEFORE_RT,
+                       SS.TAX_GUBN_01_SUM AS TAX_GUBN_01_SUM_RT,
+                       SS.TAX_GUBN_02_SUM AS TAX_GUBN_02_SUM_RT,
+                       NVL2(SS.ORDER_AMT_SUM_BEFORE, ((NVL(HH.ORDER_AMT_SUM_BEFORE,0) + NVL(HH.DLVY_AMT_SUM,0)) - SS.ORDER_AMT_SUM_BEFORE),(NVL(HH.ORDER_AMT_SUM_BEFORE,0) + NVL(HH.DLVY_AMT_SUM,0))) AS AMT_TOTAL
+                FROM HH FULL OUTER JOIN SS ON HH.MEMB_ID = SS.MEMB_ID
+		       )
+		<include refid="searchCondition"/>
+		<if test="MEMB_ORD_GUBUN != null and MEMB_ORD_GUBUN != ''">
+				<if test='MEMB_ORD_GUBUN == "MEMB_NM_ORDER"'>
+					<if test='MEMB_NM_ORDER == "desc"'>
+						ORDER BY MEMB_NAME desc, MEMB_ID ASC
+					</if>	
+					<if test='MEMB_NM_ORDER == "asc"'>
+						ORDER BY MEMB_NAME asc, MEMB_ID ASC
+					</if>
+				</if>
+				<if test='MEMB_ORD_GUBUN == "COM_NM_ORDER"'>
+					<if test='COM_NM_ORDER == "desc"'>
+						ORDER BY COM_NAME desc, MEMB_ID ASC
+					</if>	
+					<if test='COM_NM_ORDER == "asc"'>
+						ORDER BY COM_NAME asc, MEMB_ID ASC
+					</if>
+				</if>
+				
+			</if>
+			<if test="MEMB_ORD_GUBUN == null or MEMB_ORD_GUBUN == ''">
+				ORDER BY MEMB_NAME
+			</if>
+			
+		<include refid="default.pagerFooter"/>
+	</select>
+	
+	<select id="excelList" parameterType="mall.web.domain.TB_MBINFOXM" resultType="HashMap">
+			WITH HH AS (
+                SELECT A.MEMB_ID,
+                       FC_GET_COMCOD_NM (A.MEMB_GUBN) MEMB_GUBN_NM,
+                       A.MEMB_NAME,
+                       A.MEMB_MAIL,
+                       A.COM_NAME,
+                       A.COM_BUNB,
+                       A.COM_BADR,
+                       A.COM_DADR,
+                       A.REG_DTM
+	                 , (SELECT SUM (DLVY_AMT)
+	                      FROM TB_ODINFOXM
+	                     WHERE     MEMB_ID = A.MEMB_ID
+	                           AND ORDER_CON IN
+	                                  ('ORDER_CON_02',
+	                                   'ORDER_CON_03',
+	                                   'ORDER_CON_05',
+	                                   'ORDER_CON_06',
+	                                   'ORDER_CON_08')
+	                         <if test="datepickerStr != null and datepickerStr != ''">
+								 AND PAY_DTM BETWEEN TRUNC(TO_DATE(#{datepickerStr},'YYYY-MM')) AND ADD_MONTHS(TO_DATE (#{datepickerStr},'YYYY-MM'),1)
+							 </if>)
+	                      AS DLVY_AMT_SUM,
+	                   SUM (C.ORDER_AMT) AS ORDER_AMT_SUM_BEFORE,
+	                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_01', C.ORDER_AMT, 0)) AS TAX_GUBN_01_SUM,
+	                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_02', C.ORDER_AMT, 0)) AS TAX_GUBN_02_SUM,
+	                   <if test="PAY_GUBN != null and PAY_GUBN != ''">
+							<if test='PAY_GUBN == "PAY_METD_01"'>
+								SUM(DECODE (B.PAY_METD, 'PAY_METD_01', DECODE(D.TAX_GUBN, 'TAX_GUBN_01', C.ORDER_AMT))) AS PAY_METD_01_TAX_GUBN_01_SUM,  
+					         	SUM(DECODE (B.PAY_METD, 'PAY_METD_01', DECODE(D.TAX_GUBN, 'TAX_GUBN_02', C.ORDER_AMT))) AS PAY_METD_01_TAX_GUBN_02_SUM, 
+					         	0 AS PAY_METD_02_TAX_GUBN_01_SUM,
+         					 	0 AS PAY_METD_02_TAX_GUBN_02_SUM					
+							</if>		
+							<if test='PAY_GUBN == "SC0040"'>
+								0 AS PAY_METD_01_TAX_GUBN_01_SUM,  
+					         	0 AS PAY_METD_01_TAX_GUBN_02_SUM, 
+					         	SUM(CASE WHEN B.PAY_METD !='PAY_METD_01' THEN DECODE(D.TAX_GUBN, 'TAX_GUBN_01', C.ORDER_AMT) END) AS PAY_METD_02_TAX_GUBN_01_SUM,
+        					 	SUM(CASE WHEN B.PAY_METD !='PAY_METD_01' THEN DECODE(D.TAX_GUBN, 'TAX_GUBN_02', C.ORDER_AMT) END) AS PAY_METD_02_TAX_GUBN_02_SUM
+							</if>	
+						</if>
+						<if test="PAY_GUBN == null or PAY_GUBN == ''">
+							SUM(DECODE (B.PAY_METD, 'PAY_METD_01', DECODE(D.TAX_GUBN, 'TAX_GUBN_01', C.ORDER_AMT))) AS PAY_METD_01_TAX_GUBN_01_SUM,  
+				         	SUM(DECODE (B.PAY_METD, 'PAY_METD_01', DECODE(D.TAX_GUBN, 'TAX_GUBN_02', C.ORDER_AMT))) AS PAY_METD_01_TAX_GUBN_02_SUM, 
+				         	SUM(CASE WHEN B.PAY_METD !='PAY_METD_01' THEN DECODE(D.TAX_GUBN, 'TAX_GUBN_01', C.ORDER_AMT) END) AS PAY_METD_02_TAX_GUBN_01_SUM,
+        					 	SUM(CASE WHEN B.PAY_METD !='PAY_METD_01' THEN DECODE(D.TAX_GUBN, 'TAX_GUBN_02', C.ORDER_AMT) END) AS PAY_METD_02_TAX_GUBN_02_SUM
+						</if>
+	              FROM TB_MBINFOXM A, TB_ODINFOXM B, TB_ODINFOXD C, TB_PDINFOXM D
+	             WHERE A.MEMB_ID = B.MEMB_ID
+	               AND B.ORDER_NUM = C.ORDER_NUM
+	               AND C.PD_CODE = D.PD_CODE
+	               AND B.ORDER_CON IN
+	                          ('ORDER_CON_02',
+	                           'ORDER_CON_03',
+	                           'ORDER_CON_05',
+	                           'ORDER_CON_06',
+	                           'ORDER_CON_08')
+	                   AND B.PAY_AMT IS NOT NULL
+                    <if test="datepickerStr != null and datepickerStr != ''">
+						 AND PAY_DTM BETWEEN TRUNC(TO_DATE(#{datepickerStr},'YYYY-MM')) AND ADD_MONTHS(TO_DATE (#{datepickerStr},'YYYY-MM'),1)
+					 </if>
+	              GROUP BY A.MEMB_ID,
+	                       A.MEMB_GUBN,
+	                       A.MEMB_NAME,
+	                       A.MEMB_MAIL,
+	                       A.COM_NAME,
+	                       A.COM_BUNB,
+	                       A.COM_BADR,
+	                       A.COM_DADR,
+	                       A.REG_DTM
+			            ),
+			       SS AS (
+			                SELECT A.MEMB_ID,
+			                       FC_GET_COMCOD_NM (A.MEMB_GUBN) MEMB_GUBN_NM,
+			                       A.MEMB_NAME,
+			                       A.MEMB_MAIL,
+			                       A.COM_NAME,
+			                       A.COM_BUNB,
+			                       A.COM_BADR,
+			                       A.COM_DADR,
+			                       A.REG_DTM
+			                 , (SELECT SUM (DLVY_AMT)
+			                      FROM TB_RTODINFOXM
+			                     WHERE MEMB_ID = A.MEMB_ID)
+			                      AS DLVY_AMT_SUM,
+			                   SUM (C.RETURN_AMT) AS ORDER_AMT_SUM_BEFORE,
+			                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_01', C.RETURN_AMT, 0)) AS TAX_GUBN_01_SUM,
+			                   SUM ( DECODE (D.TAX_GUBN,'TAX_GUBN_02', C.RETURN_AMT, 0)) AS TAX_GUBN_02_SUM
+			              FROM TB_MBINFOXM A, TB_RTODINFOXM B, TB_RTODINFOXD C, TB_PDINFOXM D
+			             WHERE A.MEMB_ID = B.MEMB_ID
+			               AND B.RETURN_NUM = C.RETURN_NUM
+			               AND C.PD_CODE = D.PD_CODE
+			              AND B.RETURN_AMT IS NOT NULL
+                    <if test="datepickerStr != null and datepickerStr != ''">
+						 AND TO_DATE(B.RETURN_DATE,'YYYYMMDDHH24MISS') BETWEEN TRUNC(TO_DATE(#{datepickerStr},'YYYY-MM')) AND ADD_MONTHS(TO_DATE (#{datepickerStr},'YYYY-MM'),1)
+					 </if>
+			              GROUP BY A.MEMB_ID,
+			                       A.MEMB_GUBN,
+			                       A.MEMB_NAME,
+			                       A.MEMB_MAIL,
+			                       A.COM_NAME,
+			                       A.COM_BUNB,
+			                       A.COM_BADR,
+			                       A.COM_DADR,
+			                       A.REG_DTM
+			           )
+			SELECT *
+			  FROM (  SELECT NVL (HH.MEMB_ID, SS.MEMB_ID) AS MEMB_ID,
+                                 NVL (HH.MEMB_GUBN_NM, SS.MEMB_GUBN_NM)
+                                    AS MEMB_GUBN_NM,
+                                 <!-- NVL (HH.MEMB_NAME, SS.MEMB_NAME) AS MEMB_NAME, -->
+                     			 HH.MEMB_NAME AS MEMB_NAME,
+                                 SS.MEMB_NAME AS MEMB_NAME2,
+                                 NVL (HH.MEMB_MAIL, SS.MEMB_MAIL) AS MEMB_MAIL,
+                                 NVL (HH.COM_NAME, SS.COM_NAME) AS COM_NAME,
+                                 NVL (HH.COM_BUNB, SS.COM_BUNB) AS COM_BUNB,
+                                 NVL (HH.COM_BADR, SS.COM_BADR) AS COM_BADR,
+                                 NVL (HH.COM_DADR, SS.COM_DADR) AS COM_DADR,
+                                 NVL (HH.REG_DTM, SS.REG_DTM) AS REG_DTM,
+                                 HH.PAY_METD_01_TAX_GUBN_01_SUM,
+					             HH.PAY_METD_01_TAX_GUBN_02_SUM,
+					             HH.PAY_METD_02_TAX_GUBN_01_SUM,
+					             HH.PAY_METD_02_TAX_GUBN_02_SUM,
+                                 HH.DLVY_AMT_SUM AS DLVY_AMT_SUM,
+                                 HH.ORDER_AMT_SUM_BEFORE AS ORDER_AMT_SUM_BEFORE,
+                                 HH.TAX_GUBN_01_SUM AS TAX_GUBN_01_SUM,
+                                 HH.TAX_GUBN_02_SUM AS TAX_GUBN_02_SUM,
+                                 HH.ORDER_AMT_SUM_BEFORE + HH.DLVY_AMT_SUM
+                                    AS ORDER_AMT_SUM,
+                                 SS.DLVY_AMT_SUM AS DLVY_AMT_SUM_RT,
+                                 SS.ORDER_AMT_SUM_BEFORE
+                                    AS ORDER_AMT_SUM_BEFORE_RT,
+                                 SS.TAX_GUBN_01_SUM AS TAX_GUBN_01_SUM_RT,
+                                 SS.TAX_GUBN_02_SUM AS TAX_GUBN_02_SUM_RT,
+                                 NVL2(SS.ORDER_AMT_SUM_BEFORE, ((NVL(HH.ORDER_AMT_SUM_BEFORE,0) + NVL(HH.DLVY_AMT_SUM,0)) - SS.ORDER_AMT_SUM_BEFORE),(NVL(HH.ORDER_AMT_SUM_BEFORE,0) + NVL(HH.DLVY_AMT_SUM,0))) AS AMT_TOTAL
+                          FROM HH FULL OUTER JOIN SS ON HH.MEMB_ID = SS.MEMB_ID
+			       )
+			<include refid="searchCondition"/>
+			
+			ORDER BY MEMB_NAME
+	</select>
+</mapper>

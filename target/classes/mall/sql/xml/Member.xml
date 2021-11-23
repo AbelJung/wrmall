@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="mall.web.mapper.mall.MemberMapper">
+	<sql id="searchCondition">
+		<where>	
+			<if test="MEMB_NAME != null and MEMB_NAME != ''">
+			    AND MEMB_NAME = #{MEMB_NAME}
+			</if>	
+			<if test="MEMB_GUBN != null and MEMB_GUBN != ''">
+			    AND MEMB_GUBN = #{MEMB_GUBN}
+			</if>	
+			<if test="SCSS_YN != null and SCSS_YN != ''">
+			    AND SCSS_YN = #{SCSS_YN}
+			</if>	
+			<if test="SCSS_YN != null and SCSS_YN != ''">
+			    AND SCSS_YN = #{SCSS_YN}
+			</if>
+			<if test="SUPR_ID != null and SUPR_ID != ''">
+			    AND SUPR_ID = #{SUPR_ID}
+			</if>
+			<if test="schGbn != null and schGbn != ''">
+				<if test='schGbn == "SUPR_NAME"'>
+					<if test="schTxt != null and schTxt != ''">
+					    AND SUPR_NAME LIKE '%' || #{schTxt} || '%'
+					</if>	
+				</if>		
+				<if test='schGbn == "MEMB_ID"'>
+					<if test="schTxt != null and schTxt != ''">
+					    AND MEMB_ID LIKE '%' || #{schTxt} || '%'
+					</if>	
+				</if>			
+				<if test='schGbn == "MEMB_NAME"'>
+					<if test="schTxt != null and schTxt != ''">
+					    AND MEMB_NAME LIKE '%' || #{schTxt} || '%'
+					</if>	
+				</if>	
+			</if>
+		</where>  
+	</sql>
+
+	<select id="count" parameterType="mall.web.domain.TB_MBINFOXM" resultType="int">
+			SELECT COUNT(*)
+			  FROM (
+					SELECT
+						MEMB_ID
+						, MEMB_GUBN
+						, FC_GET_COMCOD_NM(MEMB_GUBN) MEMB_GUBN_NM
+						, SUPR_ID
+						, FC_GET_SUPRID_NM(SUPR_ID) SUPR_NAME
+						, SUPMEM_APST
+						, FC_GET_COMCOD_NM(SUPMEM_APST) SUPMEM_APST_NM
+						, APRF_RESN
+						, MEMB_NAME
+						, MEMB_PW
+						, MEMB_SEX
+						, SLCAL_GUBN
+						, MEMB_BTDY
+						, MEMB_MAIL
+						, MEMB_IRA
+						, MEMB_PN
+						, MEMB_BADR
+						, MEMB_DADR
+						, MEMB_CPON
+						, MEMB_CSRA
+						, MEMB_TELN
+						, COM_NAME
+						, COM_BUNB
+						, COM_TELN
+						, COM_PN
+						, COM_BADR
+						, COM_DADR
+						, SCSS_YN
+						, REGP_ID
+						, REG_DTM
+						, MODP_ID
+						, MOD_DTM
+						, COM_OPEN
+						, COM_CLOSE
+						, BANK_NAME
+						, BANK_BUNB
+					FROM TB_MBINFOXM
+			        )
+		<include refid="searchCondition"/>
+	</select>
+	
+	<select id="paginatedList" parameterType="mall.web.domain.TB_MBINFOXM" resultType="mall.web.domain.TB_MBINFOXM">
+		<include refid="default.pagerHeader"/>	
+			SELECT *
+			  FROM (
+					SELECT
+						MEMB_ID
+						, MEMB_GUBN
+						, FC_GET_COMCOD_NM(MEMB_GUBN) MEMB_GUBN_NM
+						, SUPR_ID
+						, FC_GET_SUPRID_NM(SUPR_ID) SUPR_NAME
+						, SUPMEM_APST
+						, FC_GET_COMCOD_NM(SUPMEM_APST) SUPMEM_APST_NM
+						, APRF_RESN
+						, MEMB_NAME
+						, MEMB_PW
+						, MEMB_SEX
+						, SLCAL_GUBN
+						, MEMB_BTDY
+						, MEMB_MAIL
+						, MEMB_IRA
+						, MEMB_PN
+						, MEMB_BADR
+						, MEMB_DADR
+						, MEMB_CPON
+						, MEMB_CSRA
+						, MEMB_TELN
+						, COM_NAME
+						, COM_BUNB
+						, COM_TELN
+						, COM_PN
+						, COM_BADR
+						, COM_DADR
+						, SCSS_YN
+						, REGP_ID
+						, REG_DTM
+						, MODP_ID
+						, MOD_DTM
+						, COM_OPEN
+						, COM_CLOSE
+						, BANK_NAME
+						, BANK_BUNB
+						, STOP_YN
+						, STOP_DTM
+						, DLVY_CPON
+					FROM TB_MBINFOXM
+			        )
+			<include refid="searchCondition"/>
+		<include refid="default.pagerFooter"/>
+	</select>
+	
+	<select id="find" parameterType="mall.web.domain.TB_MBINFOXM" resultType="mall.web.domain.TB_MBINFOXM">
+		SELECT
+			MEMB_ID
+			, MEMB_GUBN
+			, SUPR_ID
+			, SUPMEM_APST
+			, APRF_RESN
+			, MEMB_NAME
+			, MEMB_PW
+			, MEMB_SEX
+			, SLCAL_GUBN
+			, MEMB_BTDY
+			, MEMB_MAIL
+			, MEMB_IRA
+			, MEMB_PN
+			, MEMB_BADR
+			, MEMB_DADR
+			, MEMB_CPON
+			, MEMB_CSRA
+			, MEMB_TELN
+			, COM_NAME
+			, COM_BUNB
+			, COM_TELN
+			, COM_PN
+			, COM_BADR
+			, COM_DADR
+			, SCSS_YN
+			, REGP_ID
+			, REG_DTM
+			, MODP_ID
+			, MOD_DTM
+			, COM_OPEN
+			, COM_CLOSE
+			, REGEXP_SUBSTR(COM_OPEN, '[^:]+', 1, 1) COM_OPEN_HH
+			, REGEXP_SUBSTR(COM_OPEN, '[^:]+', 1, 2) COM_OPEN_MM
+			, REGEXP_SUBSTR(COM_CLOSE, '[^:]+', 1, 1) COM_CLOSE_HH
+			, REGEXP_SUBSTR(COM_CLOSE, '[^:]+', 1, 2) COM_CLOSE_MM
+			, KEEP_LOCATION
+			, BANK_NAME
+			, BANK_BUNB
+			, STOP_YN
+			, STOP_DTM
+			, DLVY_CPON
+		FROM
+			TB_MBINFOXM
+		WHERE
+			MEMB_ID = #{MEMB_ID}
+	</select>
+	
+	<insert id="insert" parameterType="mall.web.domain.TB_MBINFOXM">
+		INSERT INTO 
+			TB_MBINFOXM (
+				MEMB_ID
+				, MEMB_GUBN
+				, SUPR_ID
+				, SUPMEM_APST
+				, APRF_RESN
+				, MEMB_NAME
+				, MEMB_PW
+				, MEMB_SEX
+				, SLCAL_GUBN
+				, MEMB_BTDY
+				, MEMB_MAIL
+				, MEMB_IRA
+				, MEMB_PN
+				, MEMB_BADR
+				, MEMB_DADR
+				, MEMB_CPON
+				, MEMB_CSRA
+				, MEMB_TELN
+				, COM_NAME
+				, COM_BUNB
+				, COM_TELN
+				, COM_PN
+				, COM_BADR
+				, COM_DADR
+				, REGP_ID
+				, REG_DTM
+				, MODP_ID
+				, MOD_DTM
+				, COM_OPEN
+				, COM_CLOSE
+				, KEEP_LOCATION
+				, BANK_NAME
+				, BANK_BUNB
+			) VALUES (
+				#{MEMB_ID}
+				, #{MEMB_GUBN}
+				, #{SUPR_ID}
+				, #{SUPMEM_APST}
+				, #{APRF_RESN}
+				, #{MEMB_NAME}
+				, #{MEMB_PW}
+				, #{MEMB_SEX}
+				, #{SLCAL_GUBN}
+				, #{MEMB_BTDY}
+				, #{MEMB_MAIL}
+				, #{MEMB_IRA}
+				, #{MEMB_PN}
+				, #{MEMB_BADR}
+				, #{MEMB_DADR}
+				, #{MEMB_CPON}
+				, #{MEMB_CSRA}
+				, #{MEMB_TELN}
+				, #{COM_NAME}
+				, #{COM_BUNB}
+				, #{COM_TELN}
+				, #{COM_PN}
+				, #{COM_BADR}
+				, #{COM_DADR}
+				, #{MEMB_ID}
+				, SYSDATE
+				, #{MEMB_ID}
+				, SYSDATE
+				, #{COM_OPEN}
+				, #{COM_CLOSE}
+				, #{KEEP_LOCATION}
+				, #{BANK_NAME}
+				, #{BANK_BUNB}
+			)
+	</insert>
+	
+	<update id="update" parameterType="mall.web.domain.TB_MBINFOXM">
+		UPDATE 
+			TB_MBINFOXM
+		SET
+			MODP_ID = #{REGP_ID}
+			, MOD_DTM = SYSDATE
+			<if test="SUPMEM_APST != null and SUPMEM_APST != ''">
+			    , SUPMEM_APST = #{SUPMEM_APST}
+			</if>
+			<if test="MEMB_PW != null and MEMB_PW != ''">
+			    , MEMB_PW = #{MEMB_PW}
+			</if>
+			, APRF_RESN = #{APRF_RESN}
+			, MEMB_NAME = #{MEMB_NAME}
+			, MEMB_SEX = #{MEMB_SEX}
+			, MEMB_GUBN = #{MEMB_GUBN}
+			, SLCAL_GUBN = #{SLCAL_GUBN}
+			, MEMB_BTDY = #{MEMB_BTDY}
+			, MEMB_MAIL = #{MEMB_MAIL}
+			, MEMB_IRA = #{MEMB_IRA}
+			, MEMB_PN = #{MEMB_PN}
+			, MEMB_BADR = #{MEMB_BADR}
+			, MEMB_DADR = #{MEMB_DADR}
+			, MEMB_CPON = #{MEMB_CPON}
+			, MEMB_CSRA = #{MEMB_CSRA}
+			, MEMB_TELN = #{MEMB_TELN}
+			, COM_NAME = #{COM_NAME}
+			, COM_BUNB = #{COM_BUNB}
+			, COM_TELN = #{COM_TELN}
+			, COM_PN = #{COM_PN}
+			, COM_BADR = #{COM_BADR}
+			, COM_DADR = #{COM_DADR}
+			<if test="SCSS_YN != null and SCSS_YN != ''">
+			    , SCSS_YN = #{SCSS_YN}
+			</if>
+			, COM_OPEN = #{COM_OPEN}
+			, COM_CLOSE = #{COM_CLOSE}
+			, KEEP_LOCATION = #{KEEP_LOCATION}
+			, BANK_NAME = #{BANK_NAME}
+			, BANK_BUNB = #{BANK_BUNB}
+		WHERE
+			MEMB_ID = #{MEMB_ID}
+	</update>
+	
+	<update id="delete" parameterType="mall.web.domain.TB_MBINFOXM">
+		UPDATE 
+			TB_MBINFOXM
+		SET
+			, SCSS_YN = 'Y'
+			, MODP_ID = #{MODP_ID}
+			, MOD_DTM = #{MOD_DTM}
+		WHERE
+			MEMB_ID = #{MEMB_ID}
+	</update>
+	
+	<select id="termList" parameterType="mall.web.domain.TB_TMINFOXM" resultType="mall.web.domain.TB_TMINFOXM">
+		SELECT TERM_GUBN
+		     , TERM_CONT
+		FROM TB_TMINFOXM
+	</select>
+	
+	<select id="idCheck" parameterType="mall.web.domain.TB_MBINFOXM" resultType="int">
+		SELECT COUNT(*) AS count
+		FROM TB_MBINFOXM
+		WHERE MEMB_ID = #{MEMB_ID_TMP}
+	</select>
+	
+	<select id="comBunbChk" parameterType="mall.web.domain.TB_MBINFOXM" resultType="int">
+		SELECT COUNT(*) AS count
+		FROM TB_MBINFOXM
+		WHERE COM_BUNB = #{COM_BUNB_TMP}
+	</select>
+	
+	<!-- 배송료쿠폰 -->
+	<select id="deliCpCnt" parameterType="mall.web.domain.TB_MBINFOXM" resultType="int">
+		SELECT DLVY_CPON
+		FROM TB_MBINFOXM
+		WHERE MEMB_ID = #{MEMB_ID}
+	</select>
+	
+	<!-- 배송료쿠폰갯수 업데이트 -->
+	<update id="updateCpon" parameterType="mall.web.domain.TB_MBINFOXM">
+		UPDATE 
+			TB_MBINFOXM
+		SET
+			  DLVY_CPON 	= (TO_NUMBER(#{DLVY_CPON}) -1)
+			, MODP_ID 		= #{REGP_ID}
+			, MOD_DTM 	= SYSDATE
+		WHERE
+			MEMB_ID = #{MEMB_ID}
+	</update>
+</mapper>
